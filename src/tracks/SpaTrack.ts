@@ -1,3 +1,4 @@
+import {PitLane} from './PitLane';
 import * as T from 'three';
 import {cornerPlate,turnStations} from './SpaMarkers';
 import {addBrakingBoards} from './BrakingBoards';
@@ -12,9 +13,10 @@ export type RibbonData={
  grid:Pick<typeof data.grid,'s'|'lateral'|'rows'|'stagger'|'boxWidth'>;
 };
 export class SpaTrack {
+ pit?:PitLane;
  group=new T.Group(); road:T.Mesh; curbs:T.Mesh; markings=new T.Group();edges:T.LineSegments;bounds=new T.Box3();
  length:number;startForward:T.Vector3;startLeft:T.Vector3;spawn:T.Vector3;spawnSlope=0;
- curbFaces:{s:number,faces:T.Triangle[]}[]=[];
+ curbFaces:{s:number,heights:number[][],faces:T.Triangle[]}[]=[];
  private curbBands:{start:number,end:number,side:number}[]=[];
  constructor(private layout:RibbonData=data,id="spa",signage=true){
  const isSpa=layout===spaData;this.length=layout.geometryLength;
@@ -22,6 +24,7 @@ export class SpaTrack {
  const start=this.rawSample(data.grid.s),front=this.rawSample(data.grid.s+1),back=this.rawSample(data.grid.s-1);
  this.startForward=front.clone().sub(back);this.spawnSlope=this.startForward.y/Math.hypot(this.startForward.x,this.startForward.z);this.startForward.y=0;this.startForward.normalize();this.startLeft=new T.Vector3(-this.startForward.z,0,this.startForward.x);
  this.spawn=start.addScaledVector(this.startLeft,data.grid.lateral);
+ if(isSpa)this.pit=new PitLane(this);
  const vertices:number[]=[],indices:number[]=[],curbVertices:number[]=[],curbColors:number[]=[],curbIndices:number[]=[],lines:T.Vector3[]=[];
  const curbZones:typeof zones=isSpa?zones:[];
  if(!isSpa){
@@ -51,7 +54,7 @@ export class SpaTrack {
    this.bounds.expandByPoint(left);this.bounds.expandByPoint(right);
    const half=left.distanceTo(right)/2;
    uv.push(half/2,s/2,-half/2,s/2);
-   return {left,right,across:left.clone().sub(right).normalize()};
+   return {s,left,right,across:left.clone().sub(right).normalize()};
  });
  for(let i=0;i<rows.length-1;i++){
    const a=rows[i],b=rows[i+1],j=2*i;
@@ -62,14 +65,17 @@ export class SpaTrack {
    if(!band)continue;
    const side=band.side;
    const innerA=side>0?a.left:a.right,innerB=side>0?b.left:b.right;
-   const outerA=innerA.clone().addScaledVector(a.across,.8*side);
-   const outerB=innerB.clone().addScaledVector(b.across,.8*side);
+   // Fade the Bus Stop end ramps in both width and height. Contact uses these same vertices.
+   const taper=(s:number)=>isSpa && mid>6400?.28+.72*T.MathUtils.smoothstep(Math.min(s-band.start,band.end-s),0,7):1;
+   const ta=taper(ordered[i]),tb=taper(ordered[i+1]);
+   const outerA=innerA.clone().addScaledVector(a.across,.8*ta*side);
+   const outerB=innerB.clone().addScaledVector(b.across,.8*tb*side);
    const flat=(p:T.Vector3)=>new T.Vector3(p.x,0,p.z);
-   this.curbFaces.push({s:mid,faces:[new T.Triangle(flat(innerA),flat(innerB),flat(outerA)),
+   this.curbFaces.push({s:mid,heights:[[.008*ta,.008*tb,.035*ta],[.035*ta,.008*tb,.035*tb]],faces:[new T.Triangle(flat(innerA),flat(innerB),flat(outerA)),
      new T.Triangle(flat(outerA),flat(innerB),flat(outerB))]});
    const offset=curbVertices.length/3,color=new T.Color(Math.floor(mid/stationScale/6)%2?0xd09b14:0x9d201c);
    for(const [k,v] of [innerA,outerA,innerB,outerB,innerA,innerB,outerA,outerB].entries()){
-     curbVertices.push(v.x,v.y+([.008,.035,.008,.035,0,0,0,0][k]),v.z);
+     curbVertices.push(v.x,v.y+([.008*ta,.035*ta,.008*tb,.035*tb,0,0,0,0][k]),v.z);
      curbColors.push(color.r,color.g,color.b);
    }
    // Close the raised inner lip down to the shared edge, including at grazing angles.
@@ -92,6 +98,10 @@ export class SpaTrack {
  asphalt.generateMipmaps=true;asphalt.minFilter=T.LinearMipmapLinearFilter;
  asphalt.magFilter=T.LinearFilter;asphalt.needsUpdate=true;
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
+ if(this.pit && signage){
+   const lane=this.pit.surface(rows,this.road.material as T.Material);
+   this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());
+ }
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);
  // Selected curb ranges follow named corners; exact widths/placement are declared approximations.
 
@@ -121,8 +131,8 @@ export class SpaTrack {
  if(isSpa && signage)turnStations.forEach((station,index)=>{
    const plate=cornerPlate(index+1);
    const outside=this.curvature(station)>0?-1:1;
-   plate.position.copy(this.point(station,outside*(this.width(station)+1.5)));
-   plate.position.y+=.8;this.markings.add(plate);
+   plate.position.copy(this.point(station,outside*(this.width(station,outside)-.75)));
+   plate.quaternion.copy(this.pose(station).quaternion);plate.rotateX(-Math.PI/2);plate.rotateZ(Math.PI);plate.position.y+=.045;this.markings.add(plate);
  });
  if(signage)addBrakingBoards(this,id);
  this.group.name=isSpa?'Spa':'Circuit ribbon';
@@ -149,7 +159,7 @@ export class SpaTrack {
      for(let k=lo;k<this.curbFaces.length && this.curbFaces[k].s<station+15;k++)for(const [i,face] of this.curbFaces[k].faces.entries()){
        if(!face.containsPoint(point))continue;
        const bary=face.getBarycoord(point,new T.Vector3());
-       if(bary)return .008+.027*(i===0?bary.z:bary.x+bary.z);
+       if(bary){const h=this.curbFaces[k].heights[i];return bary.x*h[0]+bary.y*h[1]+bary.z*h[2];}
      }
      return 0;
    };

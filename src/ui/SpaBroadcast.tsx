@@ -25,7 +25,7 @@ export function SpaBroadcast({data,showCircuit,inspecting}:{data:CruiseSnapshot;
  {paths.map((points,j)=><polyline key={j} points={points} fill="none" stroke={lap?.sectors[j]?colors[lap.sectors[j].color]:'#a3a19d'} strokeWidth="25"/>)}
  {gates.slice(0,3).map(g=>{const [x,y]=at(g);return <circle key={g} cx={x} cy={y} r="33" fill="white"/>})}
  <circle cx={x} cy={y} r="58" fill="#ff9000" stroke="#292622" strokeWidth="14"/></svg>
- <b>{atTurn?'':'下一弯 '}T{turn+1} · {names[turn]}</b><div className="map-splits">{paths.map((_,j)=>{const sector=lap?.sectors[j];return <span key={j} style={{color:sector&&colors[sector.color]}}>S{j+1}<br/>{sector?(sector.ms/1000).toFixed(3):'—'}</span>})}</div></aside>}
+ <b>{atTurn?'':'下一弯 '}T{turn+1} · {names[turn]}</b></aside>}
  <aside className="race-dial" aria-label="转播遥测">
  <svg viewBox="0 0 220 196" role="img" aria-label={`${Math.round(data.speed)} 公里每小时，${data.gear??1} 挡，${rpm} RPM，油门 ${Math.round(100*(data.throttle??0))}%，制动 ${Math.round(100*(data.brake??0))}%`}>
  <circle cx="110" cy="95" r="85" fill="#17191df0"/>

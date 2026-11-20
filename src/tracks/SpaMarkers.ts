@@ -9,11 +9,10 @@ export function cornerPlate(number:number){
   const canvas=document.createElement('canvas');
   canvas.width=128;canvas.height=68;
   const ctx=canvas.getContext('2d')!;
-  ctx.fillStyle='#282824';ctx.fillRect(0,0,128,68);
-  ctx.fillStyle='#ee923c';ctx.fillRect(0,0,5,68);
-  ctx.fillStyle='#faf8ef';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.font='600 42px system-ui';ctx.fillText('T'+number,66,34);
+  ctx.fillStyle='#5a5853';ctx.fillRect(0,0,128,68);
+  ctx.fillStyle='#bc854b';ctx.fillRect(0,59,128,3);
+  ctx.fillStyle='#eee9de';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='500 42px system-ui';ctx.fillText(String(number).padStart(2,'0'),64,32);
   const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
-  const plate=new T.Sprite(new T.SpriteMaterial({map,transparent:true,depthWrite:false}));
-  plate.scale.set(1.35,.72,1);return plate;
+  return new T.Mesh(new T.PlaneGeometry(1.12,.60),new T.MeshBasicMaterial({map,side:T.DoubleSide}));
 }

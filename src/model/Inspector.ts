@@ -1,3 +1,5 @@
+import {CarAudio} from './CarAudio';
+import {turnStations} from '../tracks/SpaMarkers';
 import {shiftRpm} from '../motion/Gearbox';
 import {mirrorGlare} from './MirrorGlare';
 import {tyreView} from './TyreView';
@@ -13,10 +15,13 @@ import {createStaticCircuit} from '../tracks/StaticCircuit';
 import {FreeCamera} from '../camera/FreeCamera';
 import {RacingLine} from '../optimizer/RacingLine';
 import wheelRig from './wheel-rig.json';
-import {Cruise,type CruiseSnapshot} from '../motion/Cruise';
-export type View='busstop'|'onboard'|'hero'|'bottom'|'top'|'side'|'front'|'rear'|'track'|'free';
+import {Cruise,type CruiseSnapshot,type ReviewFrame} from '../motion/Cruise';
+export type View='trackside'|'onboard'|'hero'|'bottom'|'top'|'side'|'front'|'rear'|'track'|'free';
 export const names:Record<string,string>={body:'车身 / 侧箱',floor:'底板 / 扩散器',cockpit:'座舱 / Halo','front-wing':'前翼','rear-wing':'后翼',FL:'左前轮',FR:'右前轮',RL:'左后轮',RR:'右后轮',vehicle:'返回跟车视角'};
+// Local broadcast positions, in track metres. Choose the next shot at its coverage boundary.
+const cameraStations=[120,260,620,940,1140,1490,1860,2230,2395,2540,2860,3100,3370,3630,3800,4110,4340,4550,4760,5050,5420,5740,5990,6290,6570,6685,6860];
 export class Inspector {
+ audio=new CarAudio();
  labelsVisible=false;
  private frameCost=1/60;
  private qualityWindow=0;
@@ -32,39 +37,39 @@ export class Inspector {
    const next=this.frameCost>.022?Math.max(minimum,ratio-.25):this.frameCost<.0175?Math.min(maximum,ratio+.125):ratio;
    if(next!==ratio)this.renderer.setPixelRatio(next);
  }
- private motionVectors=[0x719ddd,0x50bb87,0xf0ab4a].map(color=>new T.ArrowHelper(new T.Vector3(0,0,1),new T.Vector3(0,1.1,0),2,color));
+
 
  tyreViews:Partial<Record<Corner,ReturnType<typeof tyreView>>>={};
  scene=new T.Scene();track=new SpaTrack();line=new RacingLine(this.track);cruise=new Cruise(this.track,this.line);roadStyle:RoadStyle='soft';camera=new T.PerspectiveCamera(40,1,.02,15000);
  renderer:T.WebGLRenderer;controls:OrbitControls;free:FreeCamera;env:T.WebGLRenderTarget;resize:ResizeObserver;
- mode:'busstop'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
+ mode:'trackside'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
  tireEffects:Record<string,ReturnType<typeof wheelEffects>>={};
  shadow=contactShadow();frontFlap?:T.Group;rearFlap?:T.Group;wingTravel=0;gridWingPreview=false;
  steeringWheel?:T.Group;
  private wheelLCD?:T.CanvasTexture;
  private lastLCD='';
  private wheelRPM={value:0};
- private updateWheelLCD(){
+ private updateWheelLCD(sample?:ReviewFrame){
    const texture=this.wheelLCD;
    if(!texture)return;
-   const box=this.cruise.gearbox,speed=Math.round(this.cruise.speed*3.6),rpm=Math.round(box.rpm/100)*100;
+   const box=this.cruise.gearbox,speed=Math.round(sample?.speed??this.cruise.speed*3.6),rpm=Math.round((sample?.rpm??box.rpm)/100)*100,gear=sample?.gear??box.index+1;
    const lap=this.cruise;
-   const phase=lap.status==='idle'?'GRID':lap.status==='complete'?'END':lap.timed?'L'+(lap.lap-1):lap.lastLap?'IN':'OUT';
-   const tenths=Math.floor(lap.elapsed*10);
-   const timer=lap.timed?Math.floor(tenths/600)+':'+String(Math.floor(tenths/10)%60).padStart(2,'0')+'.'+tenths%10:'--:--.-';
-   const key=[speed,rpm,box.index,phase,timer].join('/');
+   const phase=sample?'REPLAY':lap.status==='idle'?(this.preview?'GRID':'PIT'):lap.status==='complete'?'END':lap.timed?'L'+(lap.lap-1):lap.lastLap?'IN':'OUT';
+   const tenths=Math.floor((sample?.t??lap.elapsed)*10);
+   const timer=sample||lap.timed?Math.floor(tenths/600)+':'+String(Math.floor(tenths/10)%60).padStart(2,'0')+'.'+tenths%10:'--:--.-';
+   const key=[speed,rpm,gear,phase,timer].join('/');
    if(key===this.lastLCD)return;
    this.lastLCD=key;
    const ctx=(texture.image as HTMLCanvasElement).getContext('2d')!;
    ctx.fillStyle='#080d11';ctx.fillRect(0,0,512,256);
-   this.wheelRPM.value=box.rpm;
+   this.wheelRPM.value=sample?.rpm??box.rpm;
    const field=(value:string,x:number,y:number,size:number,color:string)=>{
      ctx.textAlign='center';ctx.font='bold '+size+'px monospace';ctx.fillStyle=color;ctx.fillText(value,x,y);
    };
    field('RB22',255,29,25,'#9eb9cd');
    ctx.fillStyle='#18232c';ctx.fillRect(185,38,142,153);
    field('KM/H',91,77,24,'#b5c8cf');field(String(speed),91,150,60,'white');
-   field(String(box.index+1),256,174,144,'white');
+   field(String(gear),256,174,144,'white');
    field('RPM',417,77,24,'#b5c8cf');field(String(rpm),417,145,46,'white');
    ctx.fillStyle='#27353c';ctx.fillRect(8,199,496,2);
    field(phase,91,239,32,'#7de8c7');field(timer,354,239,38,'white');
@@ -98,7 +103,7 @@ export class Inspector {
    if(this.wheels[child.name])continue;
    child.position.y-=.30;
    this.chassis.add(child);
- }this.car.add(this.chassis);this.car.add(...this.motionVectors);
+ }this.car.add(this.chassis);
  // Lens on the front of the roll-hoop camera pod; coordinates relative to the sprung chassis.
  this.onboardMount.position.set(.085,.93,-.19);
  this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');
@@ -267,20 +272,29 @@ export class Inspector {
  this.endRoofDrag();
  this.followDistance=0;this.heroFollow=v==='hero';this.followHeading=undefined;
  this.targetPos=undefined;this.targetLook=undefined;
- if(v==='busstop'){
-   this.mode='busstop';this.controls.enabled=false;this.free.setEnabled(false);
-   const point=this.track.point(6610,19).multiplyScalar(this.displayScale);point.y+=5;
-   this.camera.position.copy(point);return;
+ if(v==='trackside'){
+   this.mode='trackside';this.controls.enabled=false;this.free.setEnabled(false);
+   return;
  }
  if(v==='onboard'){this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');this.mode='onboard';this.controls.enabled=false;this.free.setEnabled(false);return;}
- if(v==='free'){this.mode='free';this.controls.enabled=false;this.free.setEnabled(true);return;}
+ if(v==='free'){
+   if(this.mode!=='free' && this.car){
+     const distance=this.camera.position.distanceTo(this.car.position);
+     if(distance<5 || distance>200 || this.mode==='overview'){
+       this.camera.position.set(14,9,-22).applyQuaternion(this.car.quaternion).add(this.car.position);
+       this.camera.lookAt(this.car.position);
+     }
+   }
+   this.mode='free';this.controls.enabled=false;this.free.setEnabled(true);return;
+ }
  this.free.setEnabled(false);this.controls.enabled=true;
  if(v==='track'){this.mode='overview';const pose=(this.preview?.track??this.track).overview();this.targetPos=pose.position.multiplyScalar(this.displayScale);this.targetLook=pose.target.multiplyScalar(this.displayScale);return;}
- this.mode='follow';const presets:Record<Exclude<View,'busstop'|'track'|'free'|'onboard'>,number[]>={hero:this.camera.aspect>1.2?[5.6,2.4,6]:[8,4,10],bottom:[5,-3.5,5],top:[0,8,.01],side:[8,1,.1],front:[0,1.2,9],rear:[0,1.5,-9]};
+ this.mode='follow';const presets:Record<Exclude<View,'trackside'|'track'|'free'|'onboard'>,number[]>={hero:this.camera.aspect>1.2?[5.6,2.4,6]:[8,4,10],bottom:[5,-3.5,5],top:[0,8,.01],side:[8,1,.1],front:[0,1.2,9],rear:[0,1.5,-9]};
  const carPos=this.car?.position??new T.Vector3(),q=this.car?.quaternion??new T.Quaternion(),s=Math.sqrt(this.displayScale);
+ if(v==='hero' && !this.preview && this.cruise.status==='idle')presets.hero[0]*=-1;
  this.targetPos=new T.Vector3().fromArray(presets[v]).multiplyScalar(s).applyQuaternion(q).add(carPos);this.targetLook=new T.Vector3(0,v==='bottom'?.15:.6,0).multiplyScalar(this.displayScale).applyQuaternion(q).add(carPos);
  }
- exploreCorner(index:number){const corner=spaData.corners[index];if(!corner)return;const pose=this.track.pose(corner.s);this.targetPos=undefined;this.targetLook=undefined;this.camera.position.copy(pose.position.multiplyScalar(this.displayScale)).add(new T.Vector3(16,15,-25).applyQuaternion(pose.quaternion));this.camera.lookAt(pose.position);this.view('free');}
+ exploreCorner(index:number){const station=turnStations[index];if(station===undefined)return;const pose=this.track.pose(station);this.targetPos=undefined;this.targetLook=undefined;this.camera.position.copy(pose.position.multiplyScalar(this.displayScale)).add(new T.Vector3(16,15,-25).applyQuaternion(pose.quaternion));this.camera.lookAt(pose.position);this.view('free');}
  toggleCruise(){if(this.preview||!this.car)return;this.gridWingPreview=false;this.cruise.toggle();this.spinning=false;this.exploded=0;this.onCruise(this.cruise.snapshot());}
  resetGrid(){this.gridWingPreview=false;this.steering=0;this.wingTravel=0;this.cruise.reset();this.spinning=false;this.exploded=0;for(const w of Object.values(this.wheels)){w.angle=0;w.steer=0;w.spin.quaternion.identity();w.pivot.rotation.y=0;}this.placeCar();this.view('hero');this.onCruise(this.cruise.snapshot());}
  setWire(v:boolean){this.wire=v;this.car?.traverse(o=>{if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m instanceof T.MeshStandardMaterial)m.wireframe=v;});}
@@ -331,28 +345,44 @@ export class Inspector {
  }if(this.targetPos)move(this.targetPos);if(this.targetLook)move(this.targetLook);
  }
  if(this.targetPos&&this.targetLook){const a=1-Math.exp(-6*dt);this.camera.position.lerp(this.targetPos,a);this.controls.target.lerp(this.targetLook,a);if(this.camera.position.distanceTo(this.targetPos)<.005){this.targetPos=undefined;this.targetLook=undefined;}}
- if(this.mode==='busstop' && this.car)this.camera.lookAt(this.car.position);
+ if(this.mode==='trackside' && this.car){
+   const station=this.track.wrap(this.cruise.s);
+   // A bank of fixed cameras. Each holds its position until the next coverage sector.
+   const anchor=cameraStations.reduce((nearest,candidate)=>{
+     const distance=(s:number)=>Math.abs(this.track.wrap(s-station+this.track.length/2)-this.track.length/2);
+     return distance(candidate)<distance(nearest)?candidate:nearest;
+   });
+
+   const side=this.track.curvature(anchor)>0?-1:1;
+   this.camera.position.copy(this.track.point(anchor,side*(this.track.width(anchor,side)+16)).multiplyScalar(this.displayScale));
+   this.camera.position.y+=6;
+   this.camera.lookAt(this.car.position.x,this.car.position.y+.7,this.car.position.z);
+ }
  else if(this.mode==='onboard'){this.onboardMount.getWorldPosition(this.camera.position);this.onboardMount.getWorldQuaternion(this.camera.quaternion);}
  else if(this.mode==='free')this.free.tick(dt);else{this.controls.autoRotate=this.rotate&&this.mode==='follow';this.controls.autoRotateSpeed=.65;this.controls.update(dt);}
+ const grip=this.cruise.dynamics.suspension.surfaceGrip;
+ this.audio.update(!this.preview && this.cruise.status==='running',this.cruise.gearbox.rpm,this.cruise.gearbox.throttle,this.cruise.speed,1-Math.min(grip.FL,grip.FR,grip.RL,grip.RR),this.cruise.gearbox.shift>0);
  const moving=this.cruise.status!=='idle';
 
  for(const [key,w] of Object.entries(this.wheels)){
- w.pivot.position.copy(w.base);w.pivot.position.y+=this.cruise.dynamics.suspension.hub[key as keyof typeof this.cruise.dynamics.suspension.hub];w.pivot.position.x+=Math.sign(w.base.x)*(moving?0:this.exploded)*.65;
+ w.pivot.position.copy(w.base);
+ const suspension=this.cruise.dynamics.suspension;
+ let hubTravel=suspension.hub[key as Corner];
+ // The rendered rigid slick cannot compress like the tyre spring. Keep its contact
+ // patch on the measured pavement while still allowing positive wheel travel.
+ if(!this.preview && this.car && this.track.pit){
+   const patch=new T.Vector3(w.base.x,0,w.base.z).applyQuaternion(this.car.quaternion)
+     .addScaledVector(this.car.position,1/this.displayScale);
+   const surface=this.track.pit.heightAt(patch);
+   if(surface!==undefined)hubTravel=Math.max(hubTravel,surface-patch.y);
+ }
+ w.pivot.position.y+=hubTravel;w.pivot.position.x+=Math.sign(w.base.x)*(moving?0:this.exploded)*.65;
  const target=key.startsWith('F')?this.cruise.dynamics.wheelAngle(w.base.x,moving?this.cruise.dynamics.steer:this.steering):0;
  const delta=(target-w.steer)*(1-Math.exp(-dt/.12));if(moving)w.steer=target;else w.steer+=T.MathUtils.clamp(delta,-dt*.95,dt*.95);w.pivot.rotation.y=w.steer;
  const tyre=this.cruise.dynamics.tyres[key as Corner];
  this.tyreViews[key as Corner]?.update(tyre);
  w.angle=moving?tyre.angle:(w.angle+(this.spinning?dt*2:0))%(2*Math.PI);w.spin.quaternion.setFromAxisAngle(w.axis,w.angle);
  }
- const speedForArrows=this.cruise.speed;
- this.motionVectors.forEach((arrow,i)=>{
-   arrow.visible=this.mode==='busstop' && speedForArrows>1;
-   if(arrow.visible){
-     const angle=[0,Math.atan2(this.cruise.dynamics.vy,speedForArrows),this.cruise.dynamics.steer][i];
-     arrow.setDirection(new T.Vector3(Math.sin(angle),0,Math.cos(angle)));
-     arrow.setLength(2.5+.25*i,.20,.10);
-   }
- });
  this.updateWheelLCD();
  if(this.steeringWheel && this.wheels.FL && this.wheels.FR){
    // Symmetric rack angle from the two displayed Ackermann angles.
@@ -370,8 +400,8 @@ export class Inspector {
  }
  this.shadow.visible=!under && this.roadStyle!=='outline';
  const speed=this.cruise.speed;
- const fov=this.mode==='onboard'?76:42+(this.mode==='follow' && !under?8*T.MathUtils.smoothstep(speed,12,86):0);
- if(Math.abs(this.camera.fov-fov)>.02){this.camera.fov=this.mode==='onboard'?fov:T.MathUtils.damp(this.camera.fov,fov,4,dt);this.camera.updateProjectionMatrix();}
+ const fov=this.mode==='trackside' && this.car?T.MathUtils.clamp(2*Math.atan(12/Math.max(1,this.camera.position.distanceTo(this.car.position)))*T.MathUtils.RAD2DEG,10,52):this.mode==='onboard'?76:42+(this.mode==='follow' && !under?8*T.MathUtils.smoothstep(speed,12,86):0);
+ if(Math.abs(this.camera.fov-fov)>.02){this.camera.fov=this.mode==='onboard'||this.mode==='trackside'?fov:T.MathUtils.damp(this.camera.fov,fov,4,dt);this.camera.updateProjectionMatrix();}
  if(this.cruise.status==='idle'){
    this.wingTravel=T.MathUtils.clamp(this.wingTravel+(this.gridWingPreview?1:-1)*dt/.30,0,1);
  }else this.wingTravel=this.cruise.wingTravel;
@@ -383,6 +413,29 @@ export class Inspector {
  const anchors=[{key:'front-wing',v:new T.Vector3(0,.2,2.65)},{key:'cockpit',v:new T.Vector3(0,1.05,.25)},{key:'floor',v:new T.Vector3(.65,.13,-.65)},{key:'rear-wing',v:new T.Vector3(0,1,-2.2)},{key:'vehicle',v:new T.Vector3(0,1.4,0)}];if(this.selected&&this.wheels[this.selected])anchors.push({key:this.selected,v:this.wheels[this.selected].pivot.position.clone()});
  this.onAnchor(anchors.map(({key,v})=>{if(this.car){if(key!=='vehicle'&&!this.wheels[key]){v.y-=.30;v.applyMatrix4(this.chassis.matrixWorld);}else v.applyMatrix4(this.car.matrixWorld);}const projected=v.clone().project(this.camera),dist=v.distanceTo(this.camera.position);const direction=v.clone().sub(this.camera.position).normalize();this.ray.set(this.camera.position,direction);const hit=this.car&&dist<35?this.ray.intersectObject(this.car,true)[0]:undefined;return {key,x:(projected.x*.5+.5)*this.host.clientWidth,y:(-.5*projected.y+.5)*this.host.clientHeight,visible:(key==='vehicle'?dist>=35:dist<35)&&projected.z<1&&projected.z>-1&&Math.abs(projected.x)<.95&&Math.abs(projected.y)<.95&&(!hit||hit.distance>dist-.3*this.displayScale)};}));
  };
+ private replayCamera=new T.PerspectiveCamera(76,2,.05,15000);
+ reviewImage(canvas:HTMLCanvasElement,f:ReviewFrame){
+   const car=this.car;if(!car)return;
+   const pos=car.position.clone(),q=car.quaternion.clone(),roll=this.chassis.rotation.clone(),height=this.chassis.position.y;
+   const wheelAngles=Object.values(this.wheels).map(w=>w.pivot.rotation.y);
+   const rack=this.steeringWheel?.rotation.z??0;
+   car.position.copy(f.position).multiplyScalar(this.displayScale);car.position.y+=.012;car.quaternion.copy(f.rotation);
+   this.chassis.position.y=.30+f.heave;this.chassis.rotation.set(f.pitch,0,f.roll,'YXZ');
+   for(const [name,w] of Object.entries(this.wheels))if(name.startsWith('F'))w.pivot.rotation.y=this.cruise.dynamics.wheelAngle(w.base.x,f.rack);
+   if(this.steeringWheel)this.steeringWheel.rotation.z=-T.MathUtils.clamp(10*f.rack,-Math.PI,Math.PI);
+   this.updateWheelLCD(f);this.onboardMount.getWorldPosition(this.replayCamera.position);
+   this.chassis.getWorldQuaternion(this.replayCamera.quaternion);
+   this.replayCamera.rotateY(Math.PI);this.replayCamera.rotateX(-8*T.MathUtils.DEG2RAD);
+   const renderer=this.renderer,viewport=renderer.getViewport(new T.Vector4());
+   const source=renderer.domElement,ratio=renderer.getPixelRatio();
+   const w=Math.min(source.width,source.height*2,canvas.width),h=Math.floor(w/2);
+   renderer.setViewport(0,0,w/ratio,h/ratio);renderer.render(this.scene,this.replayCamera);
+   canvas.getContext('2d')?.drawImage(source,0,source.height-h,w,h,0,0,canvas.width,canvas.height);
+   renderer.setViewport(viewport);car.position.copy(pos);car.quaternion.copy(q);this.chassis.rotation.copy(roll);this.chassis.position.y=height;
+   Object.values(this.wheels).forEach((w,i)=>w.pivot.rotation.y=wheelAngles[i]);
+   if(this.steeringWheel)this.steeringWheel.rotation.z=rack;
+   this.updateWheelLCD();renderer.render(this.scene,this.camera);
+ }
  disposeObject(o:T.Object3D){const textures=new Set<T.Texture>();o.traverse(n=>{if(n instanceof T.Mesh||n instanceof T.Line){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material]){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}}});for(const t of textures)t.dispose();}
- dispose(){(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.audio.dispose();(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }

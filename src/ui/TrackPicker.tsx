@@ -1,6 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
 import circuits from '../tracks/catalog.json';
 
+export function CircuitFlag({id}:{id:string}){
+  const country=id.split('-')[0].toUpperCase();
+  const flag=Array.from(country,letter=>String.fromCodePoint(0x1f1e6+letter.charCodeAt(0)-65)).join('');
+  return <span aria-hidden="true" className="circuit-flag">{flag}</span>;
+}
+
 export function TrackPicker({active,onChoose,onClose}: {active:string,onChoose:(id:string)=>void,onClose: () => void}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [preview, setPreview] = useState(active);
@@ -15,7 +21,7 @@ export function TrackPicker({active,onChoose,onClose}: {active:string,onChoose:(
     onClick={event => {if (event.target === event.currentTarget) onClose();}}>
     <div className="track-picker">
       <div className="track-picker-heading">
-        <div><div className="eyebrow"><span/> EXPLORE THE CIRCUITS</div><h2 id="track-title">选择赛道 <small>24 条赛道</small></h2></div>
+        <h2 id="track-title"><CircuitFlag id={selected.id}/> 赛道目录 <small>{circuits.length} 站</small></h2>
         <button className="track-dismiss" onClick={onClose} aria-label="关闭赛道选择" autoFocus>×</button>
       </div>
       <div className="track-picker-note"><span><i/> {circuits.find(c=>c.id===active)?.name}</span><span>当前赛道</span></div>
@@ -31,7 +37,7 @@ export function TrackPicker({active,onChoose,onClose}: {active:string,onChoose:(
         <div aria-live="polite"><b>{selected.name}</b><p>{selected.available ? '自主竞速' : '三维赛道 · 发车格展示'}</p></div>
         <button className="run-button" onClick={()=>onChoose(selected.id)}>{selected.id===active?'返回赛道':'进入赛道'}</button>
       </div>
-      <div className="track-attribution">轮廓仅供识别，布局版本待逐站核验。来源：<a href="https://github.com/bacinger/f1-circuits" target="_blank" rel="noreferrer">Tomislav Bacinger / f1-circuits · MIT</a></div>
+      <div className="track-attribution">赛道轮廓 · <a href="https://github.com/bacinger/f1-circuits" target="_blank" rel="noreferrer">Tomislav Bacinger / f1-circuits · MIT</a></div>
     </div>
   </dialog>;
 }

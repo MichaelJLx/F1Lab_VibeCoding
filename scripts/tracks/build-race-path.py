@@ -34,6 +34,13 @@ v=ref[(idx+1)%len(ref)]-ref[(idx-1)%len(ref)]
 v/=np.linalg.norm(v,axis=1)[:,None]
 delta=pts-ref[idx];s=stations[idx]+(delta*v).sum(1)
 offset=delta[:,1]*v[:,0]-delta[:,0]*v[:,1]
+# Retain a short, registered height profile rather than using GPS height as a datum.
+# build-spa pins this profile to the circuit map heights at the ends of each interval.
+profile_s=np.arange(670,1501,10)
+filtered_z=gaussian_filter1d(np.interp(stations,s,[r['z']*.1 for r in rows],period=L),30/(L/len(nodes)),mode='wrap')
+profile=dict(source='OpenF1 9574 / PER / lap 44; registered location.z in metres, 30 m Gaussian smoothing',
+             heights=[[int(m),round(float(np.interp(m*L/7004,stations,filtered_z)),3)] for m in profile_s])
+(root/'data/tracks/spa/raidillon-profile.json').write_text(json.dumps(profile,indent=2)+'\n')
 bound=np.array([min(n['widthLeft'],n['widthRight'])-1.5 for n in nodes])
 raw=np.interp(stations,s,offset,period=L)
 smooth=gaussian_filter1d(raw,16/(L/len(nodes)),mode='wrap')

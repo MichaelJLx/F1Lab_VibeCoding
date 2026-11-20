@@ -97,3 +97,9 @@
 
 .aero-readout{display:flex;align-items:baseline;gap:12px;font-size:10px;color:#6a665d;font-variant-numeric:tabular-nums}.aero-readout span{white-space:nowrap}.aero-readout b{margin-left:4px;color:#332e26}
 @media(max-width:640px){.cruise-strip{gap:4px}.aero-readout{gap:5px;font-size:9px}.cruise-strip>small{display:none}}
+
+.camera-picker{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:#665c52}.camera-tools,.corner-review{position:absolute;z-index:4;right:1rem;top:1rem;background:#fffdf7f5;color:#292521;border:1px solid #d8d2c7;border-radius:10px;padding:.75rem;box-shadow:0 4px 20px #261b1014}
+.camera-tools{display:grid;gap:.45rem;width:min(230px,64vw);font-size:.8rem}.camera-tools small{line-height:1.5;color:#6a625a}.camera-tools .fly-pad{display:flex;flex-wrap:wrap;gap:3px}.camera-tools button{touch-action:none}
+.corner-review{width:min(420px,90vw);max-height:86%;overflow:auto}.corner-review header,.corner-review>div{position:static;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.22rem 0;height:auto;min-height:0;background:none;font-size:.8rem}.corner-review canvas{width:100%;display:block;border-radius:4px}.review-channel svg{width:42%;height:24px}.review-channel span,.review-channel b{min-width:6em}.corner-result{font-variant-numeric:tabular-nums;font-size:12px}.corner-result small{display:block;color:#665f54}
+
+.track-pill .circuit-flag,.track-picker-heading .circuit-flag{display:inline-block;vertical-align:baseline;margin-right:.38em;font-size:1em;line-height:1;color:inherit}
