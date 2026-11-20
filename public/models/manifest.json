@@ -1,0 +1,67 @@
+{
+  "model": "2026 Redbull RB22",
+  "author": "Dave Love SketchFab / Tyler_Dave",
+  "license": "CC BY 4.0",
+  "licenseURL": "https://creativecommons.org/licenses/by/4.0/",
+  "source": "https://sketchfab.com/3d-models/2026-redbull-rb22-0a3d24a58e0549d591a5a48c22eec383",
+  "mirror": "https://github.com/AgentiLoop/F1/blob/main/models/rb22.glb",
+  "sourceSHA256": "57b628c7300dcc2f9dc2d97a84043e4a2f5f6e5e81502550d8997242fcaa84b6",
+  "outputSHA256": "dab9b318add53338363678b76f6fb105b03325c41a6f7582bc405da90981b70a",
+  "triangles": 280939,
+  "materials": 23,
+  "textures": 21,
+  "groups": [
+    "body",
+    "floor",
+    "cockpit",
+    "rear-wing",
+    "front-wing",
+    "FR",
+    "FL",
+    "RL",
+    "RR"
+  ],
+  "pivots": {
+    "FR": [
+      -0.7712454114450671,
+      0.3527023197411606,
+      1.6930294020911276
+    ],
+    "FL": [
+      0.7712454114450671,
+      0.35245269772068877,
+      1.6930294020911276
+    ],
+    "RL": [
+      0.732539662191436,
+      0.3544500482720862,
+      -1.6927755005606562
+    ],
+    "RR": [
+      -0.732539662191436,
+      0.3544500482720862,
+      -1.6927755005606562
+    ]
+  },
+  "scale": 0.9950387338121907,
+  "dimensions": {
+    "width": 1.9,
+    "length": 5.370162341047993,
+    "height": 1.1791092300784973,
+    "wheelbase": 3.385804902651784
+  },
+  "coordinateSystem": "metres; +Y up, +Z forward, +X driver left; y=0 tyre bottom",
+  "geometrySplit": "triangle centroid inspection regions; not factory component seams; wheel-only source materials split per corner",
+  "fidelity": {
+    "target": "95% ±3% visual target",
+    "measured": null,
+    "reason": "No factory CAD, point cloud or calibrated multi-view references. Target is not a measured result."
+  },
+  "limits": [
+    "Exact race/upgrade specification is unspecified by asset author.",
+    "Scale is uniform normalization to a 1.90 m reference width, not measured RB22 size.",
+    "Source bottom surfaces are retained; hidden internal structures are not reconstructed.",
+    "No FIA full geometry compliance claim.",
+    "Wheel rotation and steering are inspection demonstrations, not vehicle dynamics."
+  ]
+}

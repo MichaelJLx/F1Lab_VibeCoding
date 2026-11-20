@@ -1,0 +1,388 @@
+import {shiftRpm} from '../motion/Gearbox';
+import {mirrorGlare} from './MirrorGlare';
+import {tyreView} from './TyreView';
+import type {Corner} from '../motion/Suspension';
+import {wheelEffects} from './WheelEffects';
+import {setFlap,splitFlap,contactShadow} from './ActiveWings';
+import * as T from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {SpaTrack,spaData,type RoadStyle} from '../tracks/SpaTrack';
+import {createStaticCircuit} from '../tracks/StaticCircuit';
+import {FreeCamera} from '../camera/FreeCamera';
+import {RacingLine} from '../optimizer/RacingLine';
+import wheelRig from './wheel-rig.json';
+import {Cruise,type CruiseSnapshot} from '../motion/Cruise';
+export type View='busstop'|'onboard'|'hero'|'bottom'|'top'|'side'|'front'|'rear'|'track'|'free';
+export const names:Record<string,string>={body:'车身 / 侧箱',floor:'底板 / 扩散器',cockpit:'座舱 / Halo','front-wing':'前翼','rear-wing':'后翼',FL:'左前轮',FR:'右前轮',RL:'左后轮',RR:'右后轮',vehicle:'返回跟车视角'};
+export class Inspector {
+ labelsVisible=false;
+ private frameCost=1/60;
+ private qualityWindow=0;
+ private adaptResolution(dt:number){
+   if(document.hidden || dt<=0)return;
+   dt=Math.min(dt,.1);
+   this.frameCost+=(dt-this.frameCost)*(1-Math.exp(-dt));
+   this.qualityWindow+=dt;
+   if(this.qualityWindow<2)return;
+   this.qualityWindow=0;
+   const ratio=this.renderer.getPixelRatio(),maximum=Math.min(devicePixelRatio,2);
+   const minimum=Math.min(maximum,1);
+   const next=this.frameCost>.022?Math.max(minimum,ratio-.25):this.frameCost<.0175?Math.min(maximum,ratio+.125):ratio;
+   if(next!==ratio)this.renderer.setPixelRatio(next);
+ }
+ private motionVectors=[0x719ddd,0x50bb87,0xf0ab4a].map(color=>new T.ArrowHelper(new T.Vector3(0,0,1),new T.Vector3(0,1.1,0),2,color));
+
+ tyreViews:Partial<Record<Corner,ReturnType<typeof tyreView>>>={};
+ scene=new T.Scene();track=new SpaTrack();line=new RacingLine(this.track);cruise=new Cruise(this.track,this.line);roadStyle:RoadStyle='soft';camera=new T.PerspectiveCamera(40,1,.02,15000);
+ renderer:T.WebGLRenderer;controls:OrbitControls;free:FreeCamera;env:T.WebGLRenderTarget;resize:ResizeObserver;
+ mode:'busstop'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
+ tireEffects:Record<string,ReturnType<typeof wheelEffects>>={};
+ shadow=contactShadow();frontFlap?:T.Group;rearFlap?:T.Group;wingTravel=0;gridWingPreview=false;
+ steeringWheel?:T.Group;
+ private wheelLCD?:T.CanvasTexture;
+ private lastLCD='';
+ private wheelRPM={value:0};
+ private updateWheelLCD(){
+   const texture=this.wheelLCD;
+   if(!texture)return;
+   const box=this.cruise.gearbox,speed=Math.round(this.cruise.speed*3.6),rpm=Math.round(box.rpm/100)*100;
+   const lap=this.cruise;
+   const phase=lap.status==='idle'?'GRID':lap.status==='complete'?'END':lap.timed?'L'+(lap.lap-1):lap.lastLap?'IN':'OUT';
+   const tenths=Math.floor(lap.elapsed*10);
+   const timer=lap.timed?Math.floor(tenths/600)+':'+String(Math.floor(tenths/10)%60).padStart(2,'0')+'.'+tenths%10:'--:--.-';
+   const key=[speed,rpm,box.index,phase,timer].join('/');
+   if(key===this.lastLCD)return;
+   this.lastLCD=key;
+   const ctx=(texture.image as HTMLCanvasElement).getContext('2d')!;
+   ctx.fillStyle='#080d11';ctx.fillRect(0,0,512,256);
+   this.wheelRPM.value=box.rpm;
+   const field=(value:string,x:number,y:number,size:number,color:string)=>{
+     ctx.textAlign='center';ctx.font='bold '+size+'px monospace';ctx.fillStyle=color;ctx.fillText(value,x,y);
+   };
+   field('RB22',255,29,25,'#9eb9cd');
+   ctx.fillStyle='#18232c';ctx.fillRect(185,38,142,153);
+   field('KM/H',91,77,24,'#b5c8cf');field(String(speed),91,150,60,'white');
+   field(String(box.index+1),256,174,144,'white');
+   field('RPM',417,77,24,'#b5c8cf');field(String(rpm),417,145,46,'white');
+   ctx.fillStyle='#27353c';ctx.fillRect(8,199,496,2);
+   field(phase,91,239,32,'#7de8c7');field(timer,354,239,38,'white');
+   texture.needsUpdate=true;
+ }
+ private mirrorFlash?:ReturnType<typeof mirrorGlare>;
+ private tailPulse={value:0};
+ private lampMaterials:T.MeshStandardMaterial[]=[];
+ private roofDrag?:{id:number,x:number,y:number};
+ onboardMount=new T.Object3D();
+ chassis=new T.Group();
+ car?:T.Group;wheels:Record<string,{pivot:T.Group,spin:T.Group,base:T.Vector3,axis:T.Vector3,radius:number,angle:number,steer:number}>={};
+ frame=0;destroyed=false;selected:string|null=null;wire=false;rotate=false;spinning=false;steering=0;exploded=0;
+ targetPos?:T.Vector3;targetLook?:T.Vector3;last=performance.now();lastLabels=0;ray=new T.Raycaster();pointer=new T.Vector2();down=[0,0];
+ constructor(public host:HTMLDivElement,public onReady:(groups:string[])=>void,public onSelect:(key:string|null)=>void,public onError:(s:string)=>void,public onAnchor:(p:{key:string,x:number,y:number,visible:boolean}[])=>void,public onCruise:(s:CruiseSnapshot)=>void){
+ this.cruise.planWorker=new Worker(new URL('../motion/lap.worker.ts',import.meta.url),{type:'module'});
+ this.renderer=new T.WebGLRenderer({antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));this.renderer.setClearColor('#FFFDF7',1);this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.05;host.appendChild(this.renderer.domElement);
+ const pmrem=new T.PMREMGenerator(this.renderer),room=new RoomEnvironment();this.env=pmrem.fromScene(room,.04);this.scene.environment=this.env.texture;room.dispose();pmrem.dispose();
+ this.scene.add(new T.HemisphereLight(0xffffff,0x8d8172,1.1));const sun=new T.DirectionalLight(0xfff5e0,2);sun.position.set(3,6,5);this.scene.add(sun);const fill=new T.DirectionalLight(0xdce8ff,1);fill.position.set(-4,2,-3);this.scene.add(fill);
+ this.camera.position.set(7,4,9);this.controls=new OrbitControls(this.camera,this.renderer.domElement);this.controls.target.set(0,.5,0);this.controls.enableDamping=true;this.controls.minDistance=.5;this.controls.maxDistance=7000;this.controls.maxPolarAngle=Math.PI;this.controls.enablePan=true;this.controls.screenSpacePanning=true;
+ this.controls.addEventListener('start',()=>{this.targetPos=undefined;this.targetLook=undefined;});this.free=new FreeCamera(this.camera,this.renderer.domElement);
+ this.resize=new ResizeObserver(()=>this.fit());this.resize.observe(host);this.fit();
+ this.renderer.domElement.addEventListener('pointerdown',this.pointerDown);this.renderer.domElement.addEventListener('pointerup',this.pointerUp);this.renderer.domElement.addEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.addEventListener('pointercancel',this.roofCancel);this.renderer.domElement.addEventListener('pointermove',this.roofMove);
+ this.track.group.scale.setScalar(this.displayScale);this.line.mesh.scale.setScalar(this.displayScale);
+ this.scene.add(this.track.group,this.line.mesh);
+ new GLTFLoader().load('/models/rb22.glb',g=>{if(this.destroyed){this.disposeObject(g.scene);return;}this.car=g.scene;this.scene.add(this.car);this.car.scale.setScalar(this.displayScale);
+ for(const child of [...this.car.children])if(/^(FL|FR|RL|RR)$/.test(child.name)){const rig=wheelRig.wheels[child.name as keyof typeof wheelRig.wheels],center=new T.Vector3().fromArray(rig.center),pivot=new T.Group(),spin=new T.Group();pivot.name=child.name;pivot.position.copy(child.position).add(center);child.position.copy(center).negate();this.car.remove(child);spin.add(child);pivot.add(spin);this.car.add(pivot);this.wheels[child.name]={pivot,spin,base:pivot.position.clone(),axis:new T.Vector3().fromArray(rig.axis).normalize(),radius:rig.radius,angle:0,steer:0};}
+ this.chassis.name='sprung-chassis';this.chassis.position.y=.30;
+ for(const child of [...this.car.children]){
+   // Wheel hubs follow the road frame; only sprung components inherit body motion.
+   if(this.wheels[child.name])continue;
+   child.position.y-=.30;
+   this.chassis.add(child);
+ }this.car.add(this.chassis);this.car.add(...this.motionVectors);
+ // Lens on the front of the roll-hoop camera pod; coordinates relative to the sprung chassis.
+ this.onboardMount.position.set(.085,.93,-.19);
+ this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');
+ this.chassis.add(this.onboardMount);
+ for(const [key,w] of Object.entries(this.wheels)){
+   this.tyreViews[key as Corner]=tyreView(w.spin,w.radius);
+   this.tireEffects[key]=wheelEffects(w.pivot,w.spin,Math.sign(w.base.x),w.radius);
+   const center=w.base.clone();center.y=0;
+   this.cruise.contactCenters[key as keyof typeof this.wheels & ('FL'|'FR'|'RL'|'RR')]=center;
+ }
+ const cockpit=this.chassis.getObjectByName('cockpit');
+ if(cockpit){
+   // The GLB stores the grips, carbon face, LCD, LEDs and decals as separate primitives.
+   const parts=cockpit.children.filter(child=>{
+     if(!(child instanceof T.Mesh))return false;
+     child.geometry.computeBoundingBox();
+     const box=child.geometry.boundingBox;
+     return box && box.min.x>=-.14 && box.max.x<=.14 && box.min.y>.51 &&
+       box.max.y<.71 && box.min.z>.64 && box.max.z<.80;
+   });
+   const hub=new T.Group();hub.position.set(0,.608,.67);cockpit.add(hub);
+   for(const part of parts){part.position.sub(hub.position);hub.add(part);}
+   this.steeringWheel=hub;
+   const lcd=document.createElement('canvas');lcd.width=512;lcd.height=256;
+   this.wheelLCD=new T.CanvasTexture(lcd);this.wheelLCD.colorSpace=T.SRGBColorSpace;
+   const screen=parts.find((part):part is T.Mesh=>part instanceof T.Mesh && part.material.name.startsWith('gp21_LCD'));
+   if(screen){
+     const geometry=screen.geometry.clone(),pos=geometry.getAttribute('position'),bounds=geometry.boundingBox!;
+     const uv=[];
+     for(let i=0;i<pos.count;i++)uv.push((bounds.max.x-pos.getX(i))/(bounds.max.x-bounds.min.x),(pos.getY(i)-bounds.min.y)/(bounds.max.y-bounds.min.y));
+     geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));screen.geometry=geometry;
+     screen.material=new T.MeshBasicMaterial({map:this.wheelLCD,side:T.DoubleSide,toneMapped:false});
+   }
+   const lamps=parts.find((part):part is T.Mesh=>part instanceof T.Mesh && part.material.name.startsWith('clearled'));
+   if(lamps){
+     lamps.material=new T.ShaderMaterial({
+       uniforms:{rpm:this.wheelRPM},vertexShader:'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+       fragmentShader:`uniform float rpm;varying vec3 p;void main(){
+         float t=clamp((.045-p.x)/.09,0.,1.);
+         vec3 lit=t<.34?vec3(.5,7.,.8):t<.68?vec3(16.,.13,.18):vec3(2.,3.,12.);
+         float on=step(.682,p.y)*step(8250.+${shiftRpm-8250}.0*t,rpm);
+         gl_FragColor=vec4(mix(vec3(.018,.022,.025),lit,on),1.);
+         #include <tonemapping_fragment>
+         #include <colorspace_fragment>
+       }`
+     });
+   }
+ }
+ // The GLB already contains two mirror emitters and three rear emitters.
+ // Their material is shared across assemblies, so isolate the amber pair.
+ const ledMask=new T.TextureLoader().load('/models/rb22-led-optics.png');
+ ledMask.flipY=false;
+ ledMask.wrapS=ledMask.wrapT=T.RepeatWrapping;
+ for(const [assembly,color] of [['cockpit',0xffa511],['rear-wing',0xff0204]] as const){
+   this.chassis.getObjectByName(assembly)?.traverse(node=>{
+     if(!(node instanceof T.Mesh) || !(node.material instanceof T.MeshStandardMaterial))return;
+     if(assembly==='cockpit' && node.material.name.startsWith('glass.')){
+       const cover=node.material.clone();cover.transparent=true;cover.opacity=.09;cover.depthWrite=false;node.material=cover;return;
+     }
+     // These three GLB primitives contain the lip, surround and rear crash structure.
+     if(assembly==='rear-wing' && /^(redbull_detail|redbull_carbon2|redbull_paint)\./.test(node.material.name)){
+       const receiver=node.material.clone();
+       receiver.customProgramCacheKey=()=>'rear-lamp-rim-v1';
+       receiver.onBeforeCompile=shader=>{
+         shader.uniforms.tailPulse=this.tailPulse;
+         shader.vertexShader='varying vec3 lampLocal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n lampLocal=position;');
+         shader.fragmentShader='varying vec3 lampLocal; uniform float tailPulse;\n'+shader.fragmentShader.replace('#include <opaque_fragment>', `
+           vec2 xy=vec2(lampLocal.x/.0411,(lampLocal.y-.3915)/.051);
+           float rim=exp(-5.*abs(length(xy)-1.));
+           float depth=1.-smoothstep(.002,.018,abs(lampLocal.z+2.43466));
+           outgoingLight+=tailPulse*rim*depth*vec3(.38,.012,.004);
+           #include <opaque_fragment>
+         `);
+       };
+       node.material=receiver;
+       return;
+     }
+     if(!node.material.name.startsWith('rear_light_2.'))return;
+     const lens=node.material.clone();
+     lens.emissiveMap=ledMask;
+     lens.emissive.setHex(color);
+     lens.emissiveIntensity=0;
+     // Red channel = existing LED dies, green = local diffusion through the lens.
+     // Attenuate the reflected white texture where the illuminated die dominates.
+     const mirror=assembly==='cockpit';
+     if(mirror)this.mirrorFlash=mirrorGlare(node);
+     if(!mirror){
+       // The central LED face and its backing are separated by just 4 micrometres.
+       // Bias its depth slightly to keep the coplanar backing from breaking up the ring.
+       lens.polygonOffset=true;
+       lens.polygonOffsetFactor=-1;
+       lens.polygonOffsetUnits=-1;
+     }
+     lens.customProgramCacheKey=()=>mirror?'mirror-amber-v3':'rear-red-diffuser-v3';
+     lens.onBeforeCompile=shader=>{
+       if(mirror){
+         shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>', `
+           vec2 optics=texture2D(emissiveMap,vEmissiveMapUv).rg;
+           float lampPulse=totalEmissiveRadiance.r;
+           float scatter=pow(optics.g,0.68)*smoothstep(.24,.80,lampPulse);
+           totalEmissiveRadiance*=3.4*scatter;
+           totalEmissiveRadiance+=lampPulse*vec3(11.0,5.8,0.18)*optics.r;
+         `).replace('#include <opaque_fragment>', `
+           float litCoverage=clamp(lampPulse*(0.96*optics.r+0.42*optics.g),0.0,1.0);
+           outgoingLight=mix(outgoingLight,totalEmissiveRadiance,litCoverage);
+           #include <opaque_fragment>
+         `);
+         return;
+       }
+       shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>', `
+         vec3 optics=texture2D(emissiveMap,vEmissiveMapUv).rgb;
+         float pulse=totalEmissiveRadiance.r;
+         float core=optics.r*optics.b;
+         float veil=.45*optics.b+.25*pow(optics.g,1.35);
+         // Filtered dies give a continuous shoulder; the broader veil overlaps between LEDs.
+         totalEmissiveRadiance=pulse*(vec3(5.0,.085,.035)*core+vec3(1.8,.012,.005)*veil);
+       `).replace('#include <opaque_fragment>', `
+         float coverage=1.-exp(-pulse*(2.8*core+2.4*veil));
+         outgoingLight=mix(outgoingLight,totalEmissiveRadiance,coverage);
+         #include <opaque_fragment>
+       `);
+     };
+     lens.toneMapped=true;
+     node.material=lens;
+     this.lampMaterials.push(lens);
+   });
+ }
+ const front=this.chassis.getObjectByName('front-wing'),rear=this.chassis.getObjectByName('rear-wing');
+ if(front)this.frontFlap=splitFlap(front,true);
+ if(rear)this.rearFlap=splitFlap(rear,false);
+ this.car.add(this.shadow);
+ this.car.traverse(o=>{if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m instanceof T.MeshStandardMaterial)m.envMapIntensity=.8;});
+ this.placeCar();this.onReady(Object.keys(names));this.view('hero');},undefined,()=>this.onError('模型加载失败。请检查本地 models/rb22.glb 文件并刷新。'));
+ this.tick();
+ }
+ private parkedSession?:Cruise;
+ preview?:ReturnType<typeof createStaticCircuit>;
+ switchCircuit(id:string){
+   const next=id==='be-1925'?undefined:createStaticCircuit(id);
+   if(this.preview){
+     this.scene.remove(this.preview.track.group);
+     this.preview.track.dispose();
+   }
+   this.preview=next;
+   this.track.group.visible=!next;
+   if(next){
+     next.track.group.scale.setScalar(this.displayScale);
+     this.scene.add(next.track.group);
+   }
+   if(next && !this.parkedSession){
+     if(this.cruise.status==='running')this.cruise.toggle();
+     this.parkedSession=this.cruise;
+     this.cruise=new Cruise(this.track,this.line);
+   }else if(!next && this.parkedSession){
+     this.cruise=this.parkedSession;this.parkedSession=undefined;
+     this.cruise.showPlan();
+   }
+   this.free.keys.clear();this.select(null);this.spinning=false;this.exploded=0;
+   this.gridWingPreview=false;this.placeCar();this.onCruise(this.cruise.snapshot());
+   this.view('track');
+ }
+ fit(){const {width,height}=this.host.getBoundingClientRect();if(!width||!height)return;this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderer.setSize(width,height);}
+ placeCar(dt=0){if(!this.car)return;const p=this.preview?.gridPose??this.cruise.pose();this.car.position.copy(p.position).multiplyScalar(this.displayScale);this.car.position.y+=.012;this.car.quaternion.copy(p.quaternion);this.car.scale.setScalar(this.displayScale);const suspension=this.cruise.dynamics.suspension;this.chassis.position.y=.30+suspension.heave;this.chassis.rotation.set(suspension.pitch,0,suspension.roll,'YXZ');}
+ followHeading?:T.Quaternion; heroFollow=true; followDistance=0;
+ view(v:View){
+ this.endRoofDrag();
+ this.followDistance=0;this.heroFollow=v==='hero';this.followHeading=undefined;
+ this.targetPos=undefined;this.targetLook=undefined;
+ if(v==='busstop'){
+   this.mode='busstop';this.controls.enabled=false;this.free.setEnabled(false);
+   const point=this.track.point(6610,19).multiplyScalar(this.displayScale);point.y+=5;
+   this.camera.position.copy(point);return;
+ }
+ if(v==='onboard'){this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');this.mode='onboard';this.controls.enabled=false;this.free.setEnabled(false);return;}
+ if(v==='free'){this.mode='free';this.controls.enabled=false;this.free.setEnabled(true);return;}
+ this.free.setEnabled(false);this.controls.enabled=true;
+ if(v==='track'){this.mode='overview';const pose=(this.preview?.track??this.track).overview();this.targetPos=pose.position.multiplyScalar(this.displayScale);this.targetLook=pose.target.multiplyScalar(this.displayScale);return;}
+ this.mode='follow';const presets:Record<Exclude<View,'busstop'|'track'|'free'|'onboard'>,number[]>={hero:this.camera.aspect>1.2?[5.6,2.4,6]:[8,4,10],bottom:[5,-3.5,5],top:[0,8,.01],side:[8,1,.1],front:[0,1.2,9],rear:[0,1.5,-9]};
+ const carPos=this.car?.position??new T.Vector3(),q=this.car?.quaternion??new T.Quaternion(),s=Math.sqrt(this.displayScale);
+ this.targetPos=new T.Vector3().fromArray(presets[v]).multiplyScalar(s).applyQuaternion(q).add(carPos);this.targetLook=new T.Vector3(0,v==='bottom'?.15:.6,0).multiplyScalar(this.displayScale).applyQuaternion(q).add(carPos);
+ }
+ exploreCorner(index:number){const corner=spaData.corners[index];if(!corner)return;const pose=this.track.pose(corner.s);this.targetPos=undefined;this.targetLook=undefined;this.camera.position.copy(pose.position.multiplyScalar(this.displayScale)).add(new T.Vector3(16,15,-25).applyQuaternion(pose.quaternion));this.camera.lookAt(pose.position);this.view('free');}
+ toggleCruise(){if(this.preview||!this.car)return;this.gridWingPreview=false;this.cruise.toggle();this.spinning=false;this.exploded=0;this.onCruise(this.cruise.snapshot());}
+ resetGrid(){this.gridWingPreview=false;this.steering=0;this.wingTravel=0;this.cruise.reset();this.spinning=false;this.exploded=0;for(const w of Object.values(this.wheels)){w.angle=0;w.steer=0;w.spin.quaternion.identity();w.pivot.rotation.y=0;}this.placeCar();this.view('hero');this.onCruise(this.cruise.snapshot());}
+ setWire(v:boolean){this.wire=v;this.car?.traverse(o=>{if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m instanceof T.MeshStandardMaterial)m.wireframe=v;});}
+ select(key:string|null){this.selected=key;this.onSelect(key);}
+ pointerDown=(e:PointerEvent)=>{this.down=[e.clientX,e.clientY];
+ if(this.mode==='onboard' && e.button===0 && !this.roofDrag){
+   this.roofDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+   this.renderer.domElement.setPointerCapture(e.pointerId);
+ }
+ };
+ roofMove=(e:PointerEvent)=>{
+   const drag=this.roofDrag;
+   if(!drag || drag.id!==e.pointerId)return;
+   const scale=72*T.MathUtils.DEG2RAD/Math.max(1,this.renderer.domElement.clientHeight);
+   const rotation=this.onboardMount.rotation;
+   rotation.y-=(e.clientX-drag.x)*scale;
+   rotation.x=T.MathUtils.clamp(rotation.x-(e.clientY-drag.y)*scale,-Math.PI*.49,Math.PI*.49);
+   drag.x=e.clientX;drag.y=e.clientY;
+ };
+ endRoofDrag(){
+   const drag=this.roofDrag;this.roofDrag=undefined;
+   if(drag && this.renderer.domElement.hasPointerCapture(drag.id))this.renderer.domElement.releasePointerCapture(drag.id);
+ }
+ roofCancel=(e:PointerEvent)=>{if(this.roofDrag?.id===e.pointerId)this.endRoofDrag();};
+ pointerUp=(e:PointerEvent)=>{if(this.mode==='onboard'){this.roofCancel(e);return;}if(this.mode==='free'||e.button!==0||Math.hypot(e.clientX-this.down[0],e.clientY-this.down[1])>5||!this.car)return;const r=this.renderer.domElement.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hit=this.ray.intersectObject(this.car,true)[0];if(!hit){this.select(null);return;}let o:T.Object3D|null=hit.object;while(o&&!names[o.name])o=o.parent;this.select(o?.name??null);};
+ tick=()=>{
+ if(this.destroyed)return;this.frame=requestAnimationFrame(this.tick);const now=performance.now(),dt=Math.min((now-this.last)/1000,.25);this.last=now;this.adaptResolution(dt);
+ // Continuous demonstration, independent of throttle, recovery and lap phase.
+ const phase=(now%800)/800;
+ const pulse=T.MathUtils.smoothstep(phase,0,.045)*(1-T.MathUtils.smoothstep(phase,.32,.40));
+ for(const lens of this.lampMaterials)lens.emissiveIntensity=pulse;
+ this.tailPulse.value=pulse;
+ const oldPos=this.car?.position.clone(),oldQ=this.car?.quaternion.clone();const ds=this.car?this.cruise.tick(dt):0;this.placeCar(dt);
+ if(this.car&&oldPos&&oldQ&&ds>0&&this.mode==='follow'){
+ let rotation=this.car.quaternion.clone().multiply(oldQ.clone().invert());
+ if(this.heroFollow){
+   const previous=this.followHeading??oldQ;
+   this.followHeading=previous.clone().slerp(this.car.quaternion,1-Math.exp(-dt/.16));
+   rotation=this.followHeading.clone().multiply(previous.clone().invert());
+ }
+ const move=(v:T.Vector3)=>v.sub(oldPos).applyQuaternion(rotation).add(this.car!.position);
+ move(this.camera.position);move(this.controls.target);
+ if(this.heroFollow && !this.targetPos){
+   const offset=T.MathUtils.damp(this.followDistance,T.MathUtils.clamp(this.cruise.dynamics.acceleration*.035,-.55,.45),5,dt);
+   const radial=this.camera.position.clone().sub(this.controls.target).normalize();
+   this.camera.position.addScaledVector(radial,offset-this.followDistance);
+   this.followDistance=offset;
+ }if(this.targetPos)move(this.targetPos);if(this.targetLook)move(this.targetLook);
+ }
+ if(this.targetPos&&this.targetLook){const a=1-Math.exp(-6*dt);this.camera.position.lerp(this.targetPos,a);this.controls.target.lerp(this.targetLook,a);if(this.camera.position.distanceTo(this.targetPos)<.005){this.targetPos=undefined;this.targetLook=undefined;}}
+ if(this.mode==='busstop' && this.car)this.camera.lookAt(this.car.position);
+ else if(this.mode==='onboard'){this.onboardMount.getWorldPosition(this.camera.position);this.onboardMount.getWorldQuaternion(this.camera.quaternion);}
+ else if(this.mode==='free')this.free.tick(dt);else{this.controls.autoRotate=this.rotate&&this.mode==='follow';this.controls.autoRotateSpeed=.65;this.controls.update(dt);}
+ const moving=this.cruise.status!=='idle';
+
+ for(const [key,w] of Object.entries(this.wheels)){
+ w.pivot.position.copy(w.base);w.pivot.position.y+=this.cruise.dynamics.suspension.hub[key as keyof typeof this.cruise.dynamics.suspension.hub];w.pivot.position.x+=Math.sign(w.base.x)*(moving?0:this.exploded)*.65;
+ const target=key.startsWith('F')?this.cruise.dynamics.wheelAngle(w.base.x,moving?this.cruise.dynamics.steer:this.steering):0;
+ const delta=(target-w.steer)*(1-Math.exp(-dt/.12));if(moving)w.steer=target;else w.steer+=T.MathUtils.clamp(delta,-dt*.95,dt*.95);w.pivot.rotation.y=w.steer;
+ const tyre=this.cruise.dynamics.tyres[key as Corner];
+ this.tyreViews[key as Corner]?.update(tyre);
+ w.angle=moving?tyre.angle:(w.angle+(this.spinning?dt*2:0))%(2*Math.PI);w.spin.quaternion.setFromAxisAngle(w.axis,w.angle);
+ }
+ const speedForArrows=this.cruise.speed;
+ this.motionVectors.forEach((arrow,i)=>{
+   arrow.visible=this.mode==='busstop' && speedForArrows>1;
+   if(arrow.visible){
+     const angle=[0,Math.atan2(this.cruise.dynamics.vy,speedForArrows),this.cruise.dynamics.steer][i];
+     arrow.setDirection(new T.Vector3(Math.sin(angle),0,Math.cos(angle)));
+     arrow.setLength(2.5+.25*i,.20,.10);
+   }
+ });
+ this.updateWheelLCD();
+ if(this.steeringWheel && this.wheels.FL && this.wheels.FR){
+   // Symmetric rack angle from the two displayed Ackermann angles.
+   const left=this.wheels.FL.steer,right=this.wheels.FR.steer;
+   const rack=Math.abs(left+right)>1e-6?Math.atan(2/(1/Math.tan(left)+1/Math.tan(right))):0;
+   this.steeringWheel.rotation.z=-T.MathUtils.clamp(10*rack,-Math.PI,Math.PI);
+ }
+ const nearCar=this.car&&this.camera.position.distanceTo(this.car.position)<80;const under=Boolean(nearCar&&this.car!.worldToLocal(this.camera.position.clone()).y<-.1);
+ for(const [key,fx] of Object.entries(this.tireEffects)){
+   const wheel=this.wheels[key];
+   fx.shadow.position.y=-wheel.pivot.position.y+.009;
+   fx.shadow.visible=!under && this.roadStyle!=='outline';
+   const exposure=T.MathUtils.smoothstep(this.cruise.speed/wheel.radius,15,160);
+   fx.mat.opacity=.24*exposure;fx.streaks.visible=exposure>.01;
+ }
+ this.shadow.visible=!under && this.roadStyle!=='outline';
+ const speed=this.cruise.speed;
+ const fov=this.mode==='onboard'?76:42+(this.mode==='follow' && !under?8*T.MathUtils.smoothstep(speed,12,86):0);
+ if(Math.abs(this.camera.fov-fov)>.02){this.camera.fov=this.mode==='onboard'?fov:T.MathUtils.damp(this.camera.fov,fov,4,dt);this.camera.updateProjectionMatrix();}
+ if(this.cruise.status==='idle'){
+   this.wingTravel=T.MathUtils.clamp(this.wingTravel+(this.gridWingPreview?1:-1)*dt/.30,0,1);
+ }else this.wingTravel=this.cruise.wingTravel;
+ const blend=this.wingTravel*this.wingTravel*(3-2*this.wingTravel);
+ setFlap(this.frontFlap,blend);setFlap(this.rearFlap,blend);
+ (this.preview?.track??this.track).setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
+ if(now-this.lastLabels<100)return;this.lastLabels=now;this.onCruise(this.cruise.snapshot());
+ if(!this.labelsVisible)return;
+ const anchors=[{key:'front-wing',v:new T.Vector3(0,.2,2.65)},{key:'cockpit',v:new T.Vector3(0,1.05,.25)},{key:'floor',v:new T.Vector3(.65,.13,-.65)},{key:'rear-wing',v:new T.Vector3(0,1,-2.2)},{key:'vehicle',v:new T.Vector3(0,1.4,0)}];if(this.selected&&this.wheels[this.selected])anchors.push({key:this.selected,v:this.wheels[this.selected].pivot.position.clone()});
+ this.onAnchor(anchors.map(({key,v})=>{if(this.car){if(key!=='vehicle'&&!this.wheels[key]){v.y-=.30;v.applyMatrix4(this.chassis.matrixWorld);}else v.applyMatrix4(this.car.matrixWorld);}const projected=v.clone().project(this.camera),dist=v.distanceTo(this.camera.position);const direction=v.clone().sub(this.camera.position).normalize();this.ray.set(this.camera.position,direction);const hit=this.car&&dist<35?this.ray.intersectObject(this.car,true)[0]:undefined;return {key,x:(projected.x*.5+.5)*this.host.clientWidth,y:(-.5*projected.y+.5)*this.host.clientHeight,visible:(key==='vehicle'?dist>=35:dist<35)&&projected.z<1&&projected.z>-1&&Math.abs(projected.x)<.95&&Math.abs(projected.y)<.95&&(!hit||hit.distance>dist-.3*this.displayScale)};}));
+ };
+ disposeObject(o:T.Object3D){const textures=new Set<T.Texture>();o.traverse(n=>{if(n instanceof T.Mesh||n instanceof T.Line){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material]){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}}});for(const t of textures)t.dispose();}
+ dispose(){(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+}

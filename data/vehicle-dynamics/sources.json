@@ -1,0 +1,59 @@
+[
+  {
+    "file": "fastest-lap_mercedes-2020-catalunya.xml",
+    "url": "https://raw.githubusercontent.com/juanmanzanero/fastest-lap/main/database/vehicles/f1/mercedes-2020-catalunya.xml",
+    "retrieved": "2026-11-18",
+    "bytes": 3885,
+    "sha256": "4a0e3901d63b6aad2a6e48f43ad255cb5adf85000f4b2f1688d789c8f8b64f80",
+    "status": "downloaded"
+  },
+  {
+    "file": "fastest-lap_LICENSE",
+    "url": "https://raw.githubusercontent.com/juanmanzanero/fastest-lap/main/LICENSE",
+    "retrieved": "2026-11-18",
+    "bytes": 1071,
+    "sha256": "9916ef6086837af8831e3154f868d24920051f77a77116d0e22f8aab457b50e3",
+    "status": "downloaded"
+  },
+  {
+    "file": "TUM_racecar.ini",
+    "url": "https://raw.githubusercontent.com/TUMFTM/global_racetrajectory_optimization/master/params/racecar.ini",
+    "retrieved": "2026-11-18",
+    "bytes": 18165,
+    "sha256": "c82cad84b44016c757260f9998a011997f919eb66c34bbe6bcf9d84d37552112",
+    "status": "downloaded"
+  },
+  {
+    "file": "TUM_trajectory_LICENSE",
+    "url": "https://raw.githubusercontent.com/TUMFTM/global_racetrajectory_optimization/master/LICENSE",
+    "retrieved": "2026-11-18",
+    "bytes": 7652,
+    "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+    "status": "downloaded"
+  },
+  {
+    "file": "TUM_OCD_generic_double_track_MF52.json",
+    "url": "https://raw.githubusercontent.com/TUMFTM/Open-Car-Dynamics/main/python3/ocd_vehicle_models_py/config/OCD_Vehicle_RWD_LSD__PT1__DOUBLE_TRACK__MF52__DEFAULT.json",
+    "retrieved": "2026-11-18",
+    "bytes": 34473,
+    "sha256": "48c1b90c8db635b54e1a6124366d79a6e269c9d011b0f0f1e662b30a48a6c4a6",
+    "status": "downloaded"
+  },
+  {
+    "file": "TUM_OCD_LICENSE",
+    "url": "https://raw.githubusercontent.com/TUMFTM/Open-Car-Dynamics/main/LICENSE",
+    "retrieved": "2026-11-18",
+    "bytes": 11357,
+    "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+    "status": "downloaded"
+  },
+  {
+    "file": "Dallara_F308_制造商车主手册.pdf",
+    "url": "https://monoposto.co.uk/wp-content/uploads/2022/10/dallara-f308-owners-manual.pdf",
+    "retrieved": "2026-11-18",
+    "bytes": 1470100,
+    "sha256": "10cce0e0df9b6620ad4507bb46a79e3136b82d7ec26cfba0ac173c16720e3db7",
+    "status": "downloaded",
+    "usage": "制造商手册，由 Monoposto Racing Club 公开托管；本地技术参考，未发现开放再分发许可"
+  }
+]

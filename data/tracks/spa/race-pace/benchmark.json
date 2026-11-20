@@ -1,0 +1,65 @@
+{
+  "session": 9574,
+  "laps": 723,
+  "drivers": 20,
+  "mean": 109.08773858921163,
+  "median": 109.034,
+  "quartiles": [
+    108.051,
+    109.034,
+    110.048
+  ],
+  "sectors": [
+    31.125470262793915,
+    48.721073305670814,
+    29.241195020746886
+  ],
+  "representative": {
+    "meeting_key": 1242,
+    "session_key": 9574,
+    "driver_number": 22,
+    "lap_number": 35,
+    "date_start": "2024-07-28T14:06:58.907000+00:00",
+    "duration_sector_1": 31.12,
+    "duration_sector_2": 48.699,
+    "duration_sector_3": 29.276,
+    "i1_speed": null,
+    "i2_speed": 205,
+    "is_pit_out_lap": false,
+    "lap_duration": 109.095,
+    "segments_sector_1": [
+      null,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048
+    ],
+    "segments_sector_2": [
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2049
+    ],
+    "segments_sector_3": [
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048,
+      2048
+    ],
+    "st_speed": 311
+  }
+}

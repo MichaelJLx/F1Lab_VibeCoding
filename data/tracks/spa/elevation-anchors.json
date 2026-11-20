@@ -1,0 +1,86 @@
+{
+  "source": {
+    "title": "Circuit de Spa-Francorchamps official 2026 access map, page 3",
+    "url": "https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf",
+    "use": "distance/elevation anchors and corner positions"
+  },
+  "anchors": [
+    [
+      0,
+      418
+    ],
+    [
+      220,
+      424
+    ],
+    [
+      310,
+      419
+    ],
+    [
+      690,
+      403
+    ],
+    [
+      890,
+      391
+    ],
+    [
+      1130,
+      415
+    ],
+    [
+      1490,
+      446
+    ],
+    [
+      2200,
+      463
+    ],
+    [
+      2470,
+      470
+    ],
+    [
+      2870,
+      455
+    ],
+    [
+      3110,
+      438
+    ],
+    [
+      3600,
+      402
+    ],
+    [
+      4280,
+      377
+    ],
+    [
+      4740,
+      375
+    ],
+    [
+      5100,
+      373
+    ],
+    [
+      5700,
+      388
+    ],
+    [
+      6000,
+      398
+    ],
+    [
+      6540,
+      408
+    ],
+    [
+      7004,
+      418
+    ]
+  ],
+  "interpolation": "shape-preserving cubic Hermite; normalized official chainage"
+}

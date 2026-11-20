@@ -1,0 +1,23 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {Vector3,CatmullRomCurve3} from 'three';
+const geo=JSON.parse(await readFile('data/tracks/spa/be-1925.geojson','utf8'));
+const coords=geo.features[0].geometry.coordinates.slice(0,-1),origin=coords[0];
+const R=6371008.8,rad=Math.PI/180;
+const points=coords.map(([lon,lat])=>new Vector3((lon-origin[0])*rad*R*Math.cos(origin[1]*rad),0,(lat-origin[1])*rad*R));
+const curve=new CatmullRomCurve3(points,true,'centripetal');curve.arcLengthDivisions=12000;
+const length=curve.getLength(),N=Math.ceil(length/3.5);
+// Official circuit map, page 3. These are discrete labelled survey/reference heights,
+// not a dense surface scan. Intermediate elevations are shape-preserving interpolation.
+const anchors=[[0,418],[220,424],[310,419],[690,403],[890,391],[1130,415],[1490,446],[2200,463],[2470,470],[2870,455],[3110,438],[3600,402],[4280,377],[4740,375],[5100,373],[5700,388],[6000,398],[6540,408],[7004,418]];
+const d=anchors.slice(1).map((p,i)=>(p[1]-anchors[i][1])/(p[0]-anchors[i][0]));
+const slopes=anchors.map((_,i)=>{if(i===0||i===anchors.length-1)return 2/(1/d[0]+1/d.at(-1));const a=d[i-1],b=d[i];return a*b<=0?0:2*a*b/(a+b);});
+function altitude(s){let i=0;while(i<anchors.length-2&&anchors[i+1][0]<s)i++;const [s0,z0]=anchors[i],[s1,z1]=anchors[i+1],h=s1-s0,t=(s-s0)/h;return (2*t**3-3*t*t+1)*z0+(t**3-2*t*t+t)*h*slopes[i]+(-2*t**3+3*t*t)*z1+(t**3-t*t)*h*slopes[i+1];}
+// Width and bank are explicitly unknown: conservative engineering assumptions.
+function width(s){const grid=Math.min(s,7004-s);const t=Math.max(0,1-grid/220);return 11+3*t*t*(3-2*t);}
+const nodes=[];
+for(let i=0;i<N;i++){const u=i/N,p=curve.getPointAt(u),officialS=u*7004;nodes.push({s:+(u*length).toFixed(3),x:+p.x.toFixed(4),y:+p.z.toFixed(4),z:+altitude(officialS).toFixed(4),widthLeft:width(officialS)/2,widthRight:width(officialS)/2,bankAngle:0,grip:1.6});}
+const corners=[['La Source',220],['Eau Rouge',890],['Raidillon',1130],['Les Combes',2240],['Malmedy',2470],['Bruxelles',2870],['Pouhon',3600],['Fagnes',4280],['Stavelot',4740],['Paul Frère',5100],['Blanchimont',6000],['Bus Stop',6540]].map(([name,s])=>({name,s:s/7004*length}));
+const data={schemaVersion:1,trackId:'belgium-spa',name:'Spa-Francorchamps',year:2026,officialLength:7004,geometryLength:length,lapDirection:'clockwise',coordinateSystem:'x east, y north, z altitude; metres; local equirectangular projection',origin,closed:true,elevationAnchors:anchors,nodes,corners,grid:{slot:1,s:-10,lateral:-3,rows:11,stagger:8,boxLength:6.4,boxWidth:2.7,confidence:'estimated',note:'Start line uses GeoJSON origin aligned approximately with the official map; pole is on driving-right (FIA circuit list); grid offset, spacing and markings are illustrative, not certified 2026 grid measurements.'},quality:{layout:'public-reconstruction: MIT community GeoJSON; centripetal interpolation',elevation:'official discrete map anchors + shape-preserving interpolation; not dense road survey',width:'estimated profile in published ELMS 11–14 m range; allocation of maximum to grid is assumed',bank:'estimated: 0 degrees until surveyed',curbs:'estimated placement and dimensions on selected corner ranges',friction:'assumed constant 1.6; no physics simulation yet'},sources:[{title:'FIA licensed circuits list, Spa pole RIGHT and reference width 10 m',url:'https://www.fia.com/sites/default/files/circuits_fia20231022.pdf',use:'pole side and reference width only; not a current full road survey'},{title:'Circuit de Spa-Francorchamps official 2026 access map, page 3',url:'https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf',use:'distance/elevation anchors and corner positions'},{title:'ELMS Spa media guide, track width 11–14 m',url:'https://press.fiawec.com/assets/fileuploads/66/12/66124edb6859e.pdf',use:'range only; local widths estimated'},{title:'Tomislav Bacinger / f1-circuits',url:'https://github.com/bacinger/f1-circuits/blob/master/circuits/be-1925.geojson',license:'MIT',use:'2D layout'},{title:'EU-DEM / Open Topo Data',url:'https://www.opentopodata.org/datasets/eudem/',use:'reference samples retained in data/tracks/spa; NOT used as racing surface (25 m terrain resolution)'}]};
+await writeFile('src/tracks/spa.json',JSON.stringify(data));
+await writeFile('data/tracks/spa/elevation-anchors.json',JSON.stringify({source:data.sources[1],anchors,interpolation:'shape-preserving cubic Hermite; normalized official chainage'},null,2));
+console.log(`Spa imported: ${nodes.length} nodes; geometric lap ${length.toFixed(1)} m; official ${data.officialLength} m; height anchors 373–470 m.`);
