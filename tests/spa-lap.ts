@@ -1,7 +1,9 @@
+import model from '../public/models/manifest.json';
+import rig from '../src/model/wheel-rig.json';
 import raceSpeed from '../src/tracks/spa-flying-speed.json';
 import benchmark from '../data/tracks/spa/race-pace/benchmark.json';
 import assert from 'node:assert/strict';
-import {Vector3} from 'three';
+import {Box3,InstancedMesh,Matrix4,Ray,Vector3} from 'three';
 import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
 import {turnStations} from '../src/tracks/SpaMarkers';
 import {RacingLine} from '../src/optimizer/RacingLine';
@@ -40,8 +42,32 @@ assert.equal(Math.max(...slick.wear),damage);assert.ok(Math.max(...slick.heat)<h
 Object.assign(globalThis,{document:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});
 const track=new SpaTrack(),car=new Cruise(track,new RacingLine(track));
 for(const key of ['FL','FR','RL','RR'] as const){
- const front=key[0]==='F';
- car.contactCenters[key]=new Vector3((key[1]==='L'?1:-1)*(front?.771:.733),0,front?1.693:-1.693);
+ const hub=new Vector3().fromArray(model.pivots[key]).add(new Vector3().fromArray(rig.wheels[key].center));
+ hub.y=0;car.contactCenters[key]=hub;
+}
+// Check the rendered divider against the full car envelope through pit exit.
+const divider=track.markings.getObjectByName('Spa pit divider')!;
+const uprights=divider.children.find(part=>part instanceof InstancedMesh) as InstancedMesh;
+const posts=Array.from({length:uprights.count},(_,i)=>{
+ const m=new Matrix4();uprights.getMatrixAt(i,m);return new Vector3().setFromMatrixPosition(m);
+});
+// Include the wall half-thickness and 15 cm of clearance around the wing tips.
+const footprint=new Box3(new Vector3(-1.24,-4,-3.09),new Vector3(1.24,4,3.09));
+function checkExit(pose:ReturnType<Cruise['pose']>){
+ const inverse=pose.quaternion.clone().invert();
+ for(let i=1;i<posts.length;i++){
+   if(posts[i].distanceToSquared(pose.position)>100)continue;
+   const a=posts[i-1].clone().sub(pose.position).applyQuaternion(inverse);
+   const b=posts[i].clone().sub(pose.position).applyQuaternion(inverse);
+   const dir=b.clone().sub(a),length=dir.length();
+   const hit=new Ray(a,dir.normalize()).intersectBox(footprint,new Vector3());
+   assert.ok(!footprint.containsPoint(a) && (!hit || hit.distanceTo(a)>length),'pit divider clearance at '+car.s);
+ }
+ for(const hub of Object.values(car.contactCenters)){
+   const contact=hub.clone().applyQuaternion(pose.quaternion).add(pose.position);
+   const y=track.pit!.heightAt(contact);
+   assert.ok(y!==undefined && Math.abs(y-contact.y)<.08,'wheel support at pit exit '+car.s);
+ }
 }
 let kerbSamples=0,trailSamples=0;
 const stats=turnStations.map((_,i)=>({turn:i+1,error:0,g:0,kph:0,steer:0,edge:0}));
@@ -96,6 +122,7 @@ for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  if(car.timed && Math.abs(car.s-turnStations[i])<2)stat.kph=car.speed*3.6;
  const road=track.pose(car.s),normal=new Vector3(1,0,0).applyQuaternion(road.quaternion);
  const pose=car.pose();
+ if(car.lap===1 && car.s<=490)checkExit(pose);
  for(const [key,local] of Object.entries(car.contactCenters)){
    const point=local.clone().applyQuaternion(pose.quaternion).add(pose.position);
    const section=track.pose(car.s+local.z);
@@ -122,7 +149,9 @@ assert.equal(car.history.length,car.lapCount);
 
 console.log('Eau Rouge–Raidillon',fastComplex);
 assert.ok(fastComplex.peakBrake<.15 && fastComplex.minimum>275,'dry flying lap through Eau Rouge–Raidillon');
-console.log('Flying sectors',car.history[1]?.map((v,i,a)=>+(v-(a[i-1]??0)).toFixed(3)));
+const fastest=car.history.reduce((best,row)=>row[2]<best[2]?row:best);
+console.log('Fastest flying lap',fastest[2].toFixed(3),'sectors',fastest.map((v,i)=>+(v-(fastest[i-1]??0)).toFixed(3)));
+assert.ok(fastest[2]<107,'fresh-session Spa attack lap pace regression');
 console.log('First lap times', [...car.history.map(row=>row[2]),car.elapsed].slice(0,5));
 console.table(stats.map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k,+v.toFixed(2)]))));
 assert.equal(car.status,'complete');assert.equal(car.splits.length,0);

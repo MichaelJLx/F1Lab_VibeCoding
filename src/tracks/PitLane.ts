@@ -3,7 +3,7 @@ import type {SpaTrack} from './SpaTrack';
 
 // Engineering estimates in metres, relative to the finish line. Negative offsets are on driver's right.
 const stations=[-420,-400,-382,-360,-300,-210,-100,-10,75,151,196,225,266,325,405,490];
-const offsets=[0,-1,-2,-3,-9,-13,-14,-14,-14,-12,-9,-6.9,-7,-8,-4,0];
+const offsets=[0,-1,-2,-3,-9,-13,-14,-14,-14,-12,-9,-6.9,-10.5,-11,-5,0];
 const halfWidth=3.2;
 export class PitLane {
  private centers:T.Vector3[]=[];
@@ -13,11 +13,12 @@ export class PitLane {
      const lateral=this.offset(s);
      this.centers.push(track.point(s,lateral));
    }
-   // Smooth survey-node tangent noise without straightening the La Source hairpin.
+   // Round the independent pit exit inside La Source before joining the downhill straight.
    const raw=this.centers;
    this.centers=raw.map((p,i)=>{
      const station=i-420;
-     const sigma=station>210 && station<285 || station<-300 ? 2.5 : 7;
+     const bend=T.MathUtils.smoothstep(station,140,205)*(1-T.MathUtils.smoothstep(station,285,345));
+     const sigma=station<-300 ? 2.5 : 7+17*bend;
      const result=new T.Vector3();let total=0;
      for(let j=Math.max(0,i-Math.ceil(3*sigma));j<=Math.min(raw.length-1,i+3*sigma);j++){
        const weight=Math.exp(-.5*((j-i)/sigma)**2);
@@ -25,6 +26,22 @@ export class PitLane {
      }
      return result.divideScalar(total);
    });
+   // The pit shortcut covers less ground than T1. Interpolate its grade
+   // by its own horizontal arc length and match the slopes at both joins.
+   const first=420+160,last=420+340,distances=[0];
+   const horizontal=(a:T.Vector3,b:T.Vector3)=>Math.hypot(b.x-a.x,b.z-a.z);
+   const grade=(a:T.Vector3,b:T.Vector3)=>(b.y-a.y)/horizontal(a,b);
+   const entry=this.centers[first],exit=this.centers[last];
+   const startGrade=grade(this.centers[first-1],entry),endGrade=grade(exit,this.centers[last+1]);
+   for(let i=first+1;i<=last;i++){
+     distances.push(distances[i-first-1]+horizontal(this.centers[i-1],this.centers[i]));
+   }
+   const length=distances[last-first];
+   for(let i=first+1;i<last;i++){
+     const t=distances[i-first]/length,u=1-t;
+     this.centers[i].y=u*u*(1+2*t)*entry.y+t*t*(3-2*t)*exit.y+
+       length*t*u*(u*startGrade-t*endGrade);
+   }
  }
  private offset(s:number){
    let i=1;
@@ -66,8 +83,14 @@ export class PitLane {
    const baseHeight=.55,meshHeight=1.45,pitch=.16;
    const row=(s:number)=>{
      const roadEdge=this.track.width(s,-1);
-     const gap=-this.offset(s)-halfWidth-roadEdge;
-     return gap>=1.4?this.track.point(s,-roadEdge-gap/2):undefined;
+     const center=this.point(s),edge=this.track.point(s,-roadEdge);
+     const outward=this.track.point(s,-roadEdge-1).sub(edge).normalize();
+     const separation=center.sub(edge).dot(outward);
+     // The median narrows around La Source. Follow the track edge until
+     // the two drivable corridors converge at the entry or exit taper.
+     if(separation<1.25)return undefined;
+     return edge.addScaledVector(outward,Math.max(.02,(separation-halfWidth)/2));
+
    };
    let previous:T.Vector3|undefined;
    for(let s=-420;s<=490;s+=4){
@@ -111,7 +134,7 @@ export class PitLane {
  // Extend only the exposed portion of each main-road cross-section.
  // The inner edge is clipped to the exact asphalt vertex, including fractional kerb rows.
  surface(rows:{s:number,left:T.Vector3,right:T.Vector3}[],asphalt:T.Material){
-   const pos:number[]=[],uv:number[]=[],paint:number[]=[],colors:number[]=[];
+   const pos:number[]=[],uv:number[]=[],median:number[]=[],paint:number[]=[],colors:number[]=[];
    const stripe=(a:T.Vector3,b:T.Vector3,c:T.Vector3,d:T.Vector3,color:T.Color)=>{
      for(const v of [a,b,c,b,d,c]){paint.push(v.x,v.y+.007,v.z);colors.push(color.r,color.g,color.b);}
    };
@@ -119,10 +142,17 @@ export class PitLane {
    const section=(row:typeof rows[number])=>{
      const s=row.s>this.track.length/2?row.s-this.track.length:row.s;
      const normal=row.right.clone().sub(row.left).normalize();
-     const center=-this.offset(s)-this.track.width(row.s,-1);
-     const near=Math.max(0,center-halfWidth),far=Math.max(0,center+halfWidth);
-     const at=(d:number)=>row.right.clone().addScaledVector(normal,d);
-     return {s,near,far,at,inner:at(near),outer:at(far)};
+     const pit=this.point(s);
+     const tangent=this.point(s+1).sub(this.point(s-1));
+     const outward=new T.Vector3(tangent.z,0,-tangent.x).normalize();
+     if(outward.dot(normal)<0)outward.negate();
+     const outside=pit.clone().addScaledVector(outward,halfWidth);
+     const inside=pit.clone().addScaledVector(outward,-halfWidth);
+     const far=outside.clone().sub(row.right).dot(normal);
+     const near=Math.max(0,inside.clone().sub(row.right).dot(normal));
+     const outer=far>0?outside:row.right,inner=near>0?inside:row.right;
+     const at=(d:number)=>inner.clone().lerp(outer,(d-near)/Math.max(.0001,far-near));
+     return {s,near,far:Math.max(0,far),at,inner,outer};
    };
    for(let i=1;i<rows.length;i++){
      const a=rows[i-1],b=rows[i];
@@ -130,6 +160,9 @@ export class PitLane {
      this.addFace(a.left,b.left,a.right);this.addFace(a.right,b.left,b.right);
      const l=section(a),r=section(b);
      if(l.far===0 && r.far===0)continue;
+     if(l.near>0 || r.near>0){
+       for(const p of [a.right,l.inner,b.right,l.inner,r.inner,b.right])median.push(p.x,p.y-.012,p.z);
+     }
      this.addFace(l.inner,l.outer,r.inner);this.addFace(l.outer,r.outer,r.inner);
      for(const [v,d,s] of [[l.inner,l.near,a.s],[l.outer,l.far,a.s],[r.inner,r.near,b.s],[l.outer,l.far,a.s],[r.outer,r.far,b.s],[r.inner,r.near,b.s]] as const){
        pos.push(v.x,v.y,v.z);uv.push(-d/2,s/2);
@@ -144,6 +177,7 @@ export class PitLane {
    const base=new T.BufferGeometry();base.setAttribute('position',new T.Float32BufferAttribute(pos,3));
    base.setAttribute('uv',new T.Float32BufferAttribute(uv,2));base.computeVertexNormals();
    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(paint,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-   return {road:new T.Mesh(base,asphalt),paint:new T.Mesh(g,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide}))};
+   const slab=new T.BufferGeometry();slab.setAttribute('position',new T.Float32BufferAttribute(median,3));slab.computeVertexNormals();
+   return {road:new T.Mesh(base,asphalt),median:new T.Mesh(slab,new T.MeshStandardMaterial({color:0x77766d,roughness:1,side:T.DoubleSide})),paint:new T.Mesh(g,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide}))};
  }
 }

@@ -103,3 +103,20 @@
 .corner-review{width:min(420px,90vw);max-height:86%;overflow:auto}.corner-review header,.corner-review>div{position:static;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.22rem 0;height:auto;min-height:0;background:none;font-size:.8rem}.corner-review canvas{width:100%;display:block;border-radius:4px}.review-channel svg{width:42%;height:24px}.review-channel span,.review-channel b{min-width:6em}.corner-result{font-variant-numeric:tabular-nums;font-size:12px}.corner-result small{display:block;color:#665f54}
 
 .track-pill .circuit-flag,.track-picker-heading .circuit-flag{display:inline-block;vertical-align:baseline;margin-right:.38em;font-size:1em;line-height:1;color:inherit}
+
+.instrument-stack{position:absolute;right:16px;bottom:44px;display:grid;justify-items:end;gap:6px;pointer-events:none;color:#f9f5eb;font:12px/1.3 system-ui;font-variant-numeric:tabular-nums}
+.instrument-stack .race-dial{position:static;width:clamp(140px,13vw,180px);padding:0 0 8px;background:#262521;border:1px solid #625d51;border-radius:50% 50% 13px 13px}
+.dial-pedals{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px}
+.dial-pedals>div{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px;font-size:10px;color:#c8c4b9}
+.dial-pedals b{color:#faf6eb;font-weight:600}
+.dial-pedals i,.dial-pedals em{display:block;height:3px;border-radius:2px}
+.dial-pedals i{grid-column:span 2;background:#49463f}
+.trace-panel{pointer-events:auto;background:#292823f5;border:1px solid #625d51;border-radius:7px;width:max-content}
+.trace-panel[open]{width:min(232px,50vw)}
+.trace-panel summary{padding:6px 9px;cursor:pointer;font-weight:600}
+.trace-panel small{margin-left:6px;color:#c5c0b5;font-weight:400}
+.trace-panel svg{display:block;width:100%;fill:#e3dfd4;font:9px system-ui}
+.circuit-inset{width:176px;background:#282723ed;border:1px solid #625d51}
+.circuit-inset svg{display:block;height:90px}
+.map-turn{position:absolute;bottom:6px;right:7px;color:#ffac48;font-variant-numeric:tabular-nums}
+@media(max-width:680px){.instrument-stack{right:7px}.instrument-stack .race-dial{width:124px}.circuit-inset{width:128px}.circuit-inset svg{height:65px}}

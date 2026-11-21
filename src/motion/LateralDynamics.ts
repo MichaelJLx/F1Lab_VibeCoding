@@ -10,9 +10,10 @@ export class LateralDynamics {
  tyres=Object.fromEntries(corners.map(k=>[k,new Tyre(rig.wheels[k].radius)])) as Record<Corner,Tyre>;
  rearDriveReserve=0;
  private steeringLoss=0;
+ private wheelFy:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  longitudinalForce=0;wheelFx:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  steerVelocity=0;steer=0;vy=0;yawRate=0;ay=0;offset=0;headingError=0;acceleration=0;
- reset(){this.steeringLoss=0;this.rearDriveReserve=0;this.suspension.reset();this.longitudinalForce=0;for(const k of corners){this.wheelFx[k]=0;this.tyres[k]=new Tyre(rig.wheels[k].radius);}this.steerVelocity=this.steer=this.vy=this.yawRate=this.ay=this.offset=this.headingError=this.acceleration=0;}
+ reset(){this.steeringLoss=0;this.rearDriveReserve=0;this.suspension.reset();this.longitudinalForce=0;for(const k of corners){this.wheelFy[k]=0;this.wheelFx[k]=0;this.tyres[k]=new Tyre(rig.wheels[k].radius);}this.steerVelocity=this.steer=this.vy=this.yawRate=this.ay=this.offset=this.headingError=this.acceleration=0;}
  longitudinalStep(h:number,v:number,request:number,slope:number,verticalAcceleration:number,opening:number){
  const p=lateralParameters;this.suspension.step(h,v,this.acceleration,this.ay,slope,verticalAcceleration,opening);
  const resistance=this.suspension.drag+p.mass*9.81*Math.sin(slope);
@@ -22,10 +23,12 @@ export class LateralDynamics {
    const speed=v-this.yawRate*track*.5*(k[1]==='L'?1:-1);
    const fraction=request<0?(front?.57:.43)/2:(front?0:.5);
    const limit=this.suspension.capacity(k,p.grip);
-   const lateral=p.mass*Math.abs(this.ay)*this.suspension.loads[k]/Math.max(1,p.mass*9.81+this.suspension.downforce);
+   const lateral=Math.abs(this.wheelFy[k]);
    const available=Math.sqrt(Math.max(0,limit*limit-lateral*lateral));
    const transfer=request>0 && !front?MathUtils.clamp((this.tyres.RR.omega-this.tyres.RL.omega)*20,-request*.10,request*.10)*(k==='RL'?1:-1):0;
-   this.wheelFx[k]=this.tyres[k].step(h,speed,request*fraction+transfer,available,this.suspension.loads[k]);
+   const demand=request*fraction+transfer;
+   const slipAllowance=available*(1.04-.20*MathUtils.smoothstep(this.tyres[k].slip,.055,.12));
+   this.wheelFx[k]=this.tyres[k].step(h,speed,Math.min(demand,slipAllowance),available,this.suspension.loads[k]);
  }
  this.longitudinalForce=corners.reduce((sum,k)=>sum+this.wheelFx[k],0);
  this.acceleration=(this.longitudinalForce-this.steeringLoss-resistance)/p.mass;return Math.max(0,v+h*this.acceleration);
@@ -65,6 +68,7 @@ export class LateralDynamics {
  this.steeringLoss=fx.FL+fx.FR-forwardLeft-forwardRight;
  const differentialMoment=.771*(forwardRight-forwardLeft)+.733*(fx.RR-fx.RL);
  const rearLeft=force('RL',rearSlip,p.rearStiffness),rearRight=force('RR',rearSlip,p.rearStiffness);
+ this.wheelFy.FL=fl;this.wheelFy.FR=fr;this.wheelFy.RL=rearLeft;this.wheelFy.RR=rearRight;
  const rear=rearLeft+rearRight;
  // Equal drive torque per rear wheel: the less loaded tyre sets the usable margin.
  const remaining=(key:Corner,fy:number)=>Math.sqrt(Math.max(0,this.suspension.capacity(key,p.grip)**2-fy**2));

@@ -1,4 +1,4 @@
-import {CarAudio} from './CarAudio';
+import {SkidSparks} from './SkidSparks';
 import {turnStations} from '../tracks/SpaMarkers';
 import {shiftRpm} from '../motion/Gearbox';
 import {mirrorGlare} from './MirrorGlare';
@@ -21,7 +21,6 @@ export const names:Record<string,string>={body:'车身 / 侧箱',floor:'底板 /
 // Local broadcast positions, in track metres. Choose the next shot at its coverage boundary.
 const cameraStations=[120,260,620,940,1140,1490,1860,2230,2395,2540,2860,3100,3370,3630,3800,4110,4340,4550,4760,5050,5420,5740,5990,6290,6570,6685,6860];
 export class Inspector {
- audio=new CarAudio();
  labelsVisible=false;
  private frameCost=1/60;
  private qualityWindow=0;
@@ -43,6 +42,7 @@ export class Inspector {
  scene=new T.Scene();track=new SpaTrack();line=new RacingLine(this.track);cruise=new Cruise(this.track,this.line);roadStyle:RoadStyle='soft';camera=new T.PerspectiveCamera(40,1,.02,15000);
  renderer:T.WebGLRenderer;controls:OrbitControls;free:FreeCamera;env:T.WebGLRenderTarget;resize:ResizeObserver;
  mode:'trackside'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
+ private sparks=new SkidSparks(this.displayScale);
  tireEffects:Record<string,ReturnType<typeof wheelEffects>>={};
  shadow=contactShadow();frontFlap?:T.Group;rearFlap?:T.Group;wingTravel=0;gridWingPreview=false;
  steeringWheel?:T.Group;
@@ -94,7 +94,7 @@ export class Inspector {
  this.resize=new ResizeObserver(()=>this.fit());this.resize.observe(host);this.fit();
  this.renderer.domElement.addEventListener('pointerdown',this.pointerDown);this.renderer.domElement.addEventListener('pointerup',this.pointerUp);this.renderer.domElement.addEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.addEventListener('pointercancel',this.roofCancel);this.renderer.domElement.addEventListener('pointermove',this.roofMove);
  this.track.group.scale.setScalar(this.displayScale);this.line.mesh.scale.setScalar(this.displayScale);
- this.scene.add(this.track.group,this.line.mesh);
+ this.scene.add(this.track.group,this.line.mesh,this.sparks.trails);
  new GLTFLoader().load('/models/rb22.glb',g=>{if(this.destroyed){this.disposeObject(g.scene);return;}this.car=g.scene;this.scene.add(this.car);this.car.scale.setScalar(this.displayScale);
  for(const child of [...this.car.children])if(/^(FL|FR|RL|RR)$/.test(child.name)){const rig=wheelRig.wheels[child.name as keyof typeof wheelRig.wheels],center=new T.Vector3().fromArray(rig.center),pivot=new T.Group(),spin=new T.Group();pivot.name=child.name;pivot.position.copy(child.position).add(center);child.position.copy(center).negate();this.car.remove(child);spin.add(child);pivot.add(spin);this.car.add(pivot);this.wheels[child.name]={pivot,spin,base:pivot.position.clone(),axis:new T.Vector3().fromArray(rig.axis).normalize(),radius:rig.radius,angle:0,steer:0};}
  this.chassis.name='sprung-chassis';this.chassis.position.y=.30;
@@ -328,6 +328,7 @@ export class Inspector {
  for(const lens of this.lampMaterials)lens.emissiveIntensity=pulse;
  this.tailPulse.value=pulse;
  const oldPos=this.car?.position.clone(),oldQ=this.car?.quaternion.clone();const ds=this.car?this.cruise.tick(dt):0;this.placeCar(dt);
+ if(this.car)this.sparks.update(dt,this.cruise,this.chassis,this.displayScale,!!this.preview);
  if(this.car&&oldPos&&oldQ&&ds>0&&this.mode==='follow'){
  let rotation=this.car.quaternion.clone().multiply(oldQ.clone().invert());
  if(this.heroFollow){
@@ -360,8 +361,6 @@ export class Inspector {
  }
  else if(this.mode==='onboard'){this.onboardMount.getWorldPosition(this.camera.position);this.onboardMount.getWorldQuaternion(this.camera.quaternion);}
  else if(this.mode==='free')this.free.tick(dt);else{this.controls.autoRotate=this.rotate&&this.mode==='follow';this.controls.autoRotateSpeed=.65;this.controls.update(dt);}
- const grip=this.cruise.dynamics.suspension.surfaceGrip;
- this.audio.update(!this.preview && this.cruise.status==='running',this.cruise.gearbox.rpm,this.cruise.gearbox.throttle,this.cruise.speed,1-Math.min(grip.FL,grip.FR,grip.RL,grip.RR),this.cruise.gearbox.shift>0);
  const moving=this.cruise.status!=='idle';
 
  for(const [key,w] of Object.entries(this.wheels)){
@@ -437,5 +436,5 @@ export class Inspector {
    this.updateWheelLCD();renderer.render(this.scene,this.camera);
  }
  disposeObject(o:T.Object3D){const textures=new Set<T.Texture>();o.traverse(n=>{if(n instanceof T.Mesh||n instanceof T.Line){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material]){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}}});for(const t of textures)t.dispose();}
- dispose(){this.audio.dispose();(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }

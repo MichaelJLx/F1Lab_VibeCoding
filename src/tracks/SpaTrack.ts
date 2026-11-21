@@ -100,7 +100,7 @@ export class SpaTrack {
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
  if(this.pit && signage){
    const lane=this.pit.surface(rows,this.road.material as T.Material);
-   this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());
+   this.road.add(lane.road,lane.median);this.markings.add(lane.paint,this.pit.fence());
  }
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);
  // Selected curb ranges follow named corners; exact widths/placement are declared approximations.
@@ -131,8 +131,8 @@ export class SpaTrack {
  if(isSpa && signage)turnStations.forEach((station,index)=>{
    const plate=cornerPlate(index+1);
    const outside=this.curvature(station)>0?-1:1;
-   plate.position.copy(this.point(station,outside*(this.width(station,outside)-.75)));
-   plate.quaternion.copy(this.pose(station).quaternion);plate.rotateX(-Math.PI/2);plate.rotateZ(Math.PI);plate.position.y+=.045;this.markings.add(plate);
+   plate.position.copy(this.point(station,outside*(this.width(station,outside)+1.5)));
+   plate.quaternion.copy(this.pose(station).quaternion);plate.rotateY(Math.PI);this.markings.add(plate);
  });
  if(signage)addBrakingBoards(this,id);
  this.group.name=isSpa?'Spa':'Circuit ribbon';
@@ -169,5 +169,5 @@ export class SpaTrack {
  curvature(s:number){const a=this.point(s-6),b=this.point(s),c=this.point(s+6);const u=b.clone().sub(a),v=c.clone().sub(b);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.01,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
  setStyle(style:RoadStyle,under:boolean){const mat=this.road.material as T.MeshStandardMaterial;mat.transparent=under;mat.opacity=under?.08:1;mat.depthWrite=!under&&style!=='outline';this.road.visible=style!=='outline';mat.color.setHex(style==='clear'?0x292a2c:0x38393a);this.curbs.visible=!under;this.markings.visible=!under;(this.edges.material as T.LineBasicMaterial).opacity=under?.08:style==='outline'?.85:.35;}
  overview(){const c=this.bounds.getCenter(new T.Vector3()),size=this.bounds.getSize(new T.Vector3());return {target:c,position:c.clone().add(new T.Vector3(size.x*.25,Math.max(size.x,size.z)*1.3,Math.max(size.x,size.z)*.42))};}
- dispose(){(this.road.material as T.MeshStandardMaterial).map?.dispose();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.Line){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){if(o.name.startsWith("Brake board"))m.map?.dispose();m.dispose();}}});}
+ dispose(){(this.road.material as T.MeshStandardMaterial).map?.dispose();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.Line){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){if(o.name.startsWith("Brake board") || o.name==="Corner number")m.map?.dispose();m.dispose();}}});}
 }

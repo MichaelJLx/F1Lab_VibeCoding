@@ -2,7 +2,7 @@ import {activeAero} from './ActiveAero';
 /** Four contact patches and sprung-body heave/roll/pitch. SI, +X left, +Z forward.
  * Parameters are explicit engineering estimates, not team telemetry calibration.
  * Wheel displacement is relative to the local road tangent. */
-export const suspensionParameters={cgHeight:.30,rollInertia:210,pitchInertia:1100,frontTrack:1.60,rearTrack:1.55,frontSpring:154000,rearSpring:174000,compressionRatio:.78,reboundRatio:.94,frontAntiRoll:22000,rearAntiRoll:17000,travel:.038,bumpRate:650000,airDensity:1.225,liftArea:3.5,dragArea:1.2,aeroFront:.44,brakeFront:.57,loadExponent:.90};
+export const suspensionParameters={cgHeight:.30,rollInertia:210,pitchInertia:1100,frontTrack:1.60,rearTrack:1.55,frontSpring:154000,rearSpring:174000,compressionRatio:.78,reboundRatio:.94,frontAntiRoll:22000,rearAntiRoll:17000,travel:.038,bumpRate:650000,airDensity:1.225,liftArea:5.0,dragArea:1.2,aeroFront:.44,brakeFront:.57,loadExponent:.90};
 export type Corner='FL'|'FR'|'RL'|'RR';
 export const corners:Corner[]=['FL','FR','RL','RR'];
 export function tyreCapacity(load:number,reference:number,mu:number){

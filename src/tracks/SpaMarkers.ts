@@ -7,12 +7,18 @@ export const splitStations=[2132.481,4935.569];
 
 export function cornerPlate(number:number){
   const canvas=document.createElement('canvas');
-  canvas.width=128;canvas.height=68;
+  canvas.width=192;canvas.height=96;
   const ctx=canvas.getContext('2d')!;
-  ctx.fillStyle='#5a5853';ctx.fillRect(0,0,128,68);
-  ctx.fillStyle='#bc854b';ctx.fillRect(0,59,128,3);
-  ctx.fillStyle='#eee9de';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.font='500 42px system-ui';ctx.fillText(String(number).padStart(2,'0'),64,32);
+  ctx.fillStyle='#282724';ctx.fillRect(0,0,192,96);
+  ctx.fillStyle='#ff9000';ctx.fillRect(0,0,9,96);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='600 32px system-ui';ctx.fillText('T',40,49);
+  ctx.fillStyle='#fffaf0';ctx.font='bold 70px system-ui';
+  ctx.fillText(String(number).padStart(2,'0'),119,50);
   const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
-  return new T.Mesh(new T.PlaneGeometry(1.12,.60),new T.MeshBasicMaterial({map,side:T.DoubleSide}));
+  const group=new T.Group(),plate=new T.Mesh(new T.BoxGeometry(1.8,.9,.065),new T.MeshBasicMaterial({color:0x282724}));
+  const face=new T.Mesh(new T.PlaneGeometry(1.8,.9),new T.MeshBasicMaterial({map}));
+  face.name="Corner number";face.position.z=.034;plate.add(face);plate.position.y=.98;
+  const post=new T.Mesh(new T.BoxGeometry(.09,.56,.09),new T.MeshStandardMaterial({color:0x67645d}));
+  post.position.y=.28;group.add(plate,post);return group;
 }

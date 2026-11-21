@@ -28,7 +28,3 @@
 Eau Rouge 至 Raidillon 的局部高程使用佩雷兹 2024 年比利时站第 44 圈的位置数据。处理脚本将高度对齐至赛道里程，以 30 米尺度平滑，再将局部高差约束到官方地图标高。Bruxelles 的局部 12 米路宽与 Bus Stop 路肩渐变断面采用工程估值。[原始位置样本](../data/tracks/spa/flying/location.json) · [配准高程](../data/tracks/spa/raidillon-profile.json)
 
 轻量维修区路带参考赛事图的 Bus Stop 入口与 La Source 后方出口。中心线、6.4 米路宽、停车位、80 km/h 限速区域和模拟转播机位采用近似位置。[FIA 比利时站赛道及维修区图](https://www.fia.com/system/files/decision-document/2025_belgian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exits_quarantine_zone_and_red_zones.pdf)
-
-## 引擎声
-
-低频声层使用 domasx2 的《racing car engine sound loops》第一段单声道循环，作者将公共领域汽车录音剪辑为循环并调整音高，资源页面标注为 CC0。F1Lab 保留原始 WAV，在播放时随转速变调，并与独立合成的 V6 点火脉冲混音。该录音未标定车型或转速。[资源与作者说明](https://opengameart.org/content/racing-car-engine-sound-loops) · [项目内音频](../public/audio/engine-loop.wav)
