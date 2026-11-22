@@ -48,6 +48,7 @@ export class SpaTrack {
  this.curbBands=bands;
  const uv:number[]=[];
  const ordered=[...stations].sort((a,b)=>a-b);
+ const kerbTops:T.Vector3[][]=[];
  const rows=ordered.map(s=>{
    const t=s/this.length,left=leftEdge.getPoint(t),right=rightEdge.getPoint(t);
    vertices.push(...left.toArray(),...right.toArray());
@@ -73,6 +74,11 @@ export class SpaTrack {
    const flat=(p:T.Vector3)=>new T.Vector3(p.x,0,p.z);
    this.curbFaces.push({s:mid,heights:[[.008*ta,.008*tb,.035*ta],[.035*ta,.008*tb,.035*tb]],faces:[new T.Triangle(flat(innerA),flat(innerB),flat(outerA)),
      new T.Triangle(flat(outerA),flat(innerB),flat(outerB))]});
+   if(this.pit){
+     const top=(v:T.Vector3,h:number)=>new T.Vector3(v.x,v.y+h,v.z);
+     const ia=top(innerA,.008*ta),ib=top(innerB,.008*tb),oa=top(outerA,.035*ta),ob=top(outerB,.035*tb);
+     kerbTops.push([ia,ib,oa],[oa,ib,ob]);
+   }
    const offset=curbVertices.length/3,color=new T.Color(Math.floor(mid/stationScale/6)%2?0xd09b14:0x9d201c);
    for(const [k,v] of [innerA,outerA,innerB,outerB,innerA,innerB,outerA,outerB].entries()){
      curbVertices.push(v.x,v.y+([.008*ta,.035*ta,.008*tb,.035*tb,0,0,0,0][k]),v.z);
@@ -100,7 +106,8 @@ export class SpaTrack {
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
  if(this.pit && signage){
    const lane=this.pit.surface(rows,this.road.material as T.Material);
-   this.road.add(lane.road,lane.median);this.markings.add(lane.paint,this.pit.fence());
+   for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c);
+   this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());
  }
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);
  // Selected curb ranges follow named corners; exact widths/placement are declared approximations.

@@ -1,34 +1,30 @@
 import * as T from 'three';
 import type {SpaTrack} from './SpaTrack';
 
-// Engineering estimates in metres, relative to the finish line. Negative offsets are on driver's right.
-const stations=[-420,-400,-382,-360,-300,-210,-100,-10,75,151,196,225,266,325,405,490];
-const offsets=[0,-1,-2,-3,-9,-13,-14,-14,-14,-12,-9,-6.9,-10.5,-11,-5,0];
+// Registered OpenStreetMap way 323851541, see docs/sources.md.
+import path from './spa-pit-path.json';
 const halfWidth=3.2;
 export class PitLane {
  private centers:T.Vector3[]=[];
  private cells=new Map<string,T.Triangle[]>();
  constructor(private track:SpaTrack){
+   const anchors=[[-420,...this.xy(-420)],...path,[490,...this.xy(490)]];
+   const curve=new T.CatmullRomCurve3(anchors.map(([,x,z])=>new T.Vector3(x,0,z)));
+   curve.arcLengthDivisions=3000;
+   const arc=curve.getLengths();
+   const gates=anchors.map((v,i)=>({s:v[0],arc:arc[Math.round(i*3000/(anchors.length-1))]}))
+     .filter(v=>v.s<=171.35 || v.s>=315.91);
+   let i=0;
    for(let s=-420;s<=490;s++){
-     const lateral=this.offset(s);
-     this.centers.push(track.point(s,lateral));
+     while(i+2<gates.length && gates[i+1].s<s)i++;
+     const a=gates[i],b=gates[i+1],t=(s-a.s)/(b.s-a.s);
+     const raw=curve.getPointAt(T.MathUtils.lerp(a.arc,b.arc,t)/curve.getLength()).sub(track.spawn);
+     this.centers.push(new T.Vector3(raw.dot(track.startLeft),track.point(s).y,raw.dot(track.startForward)));
    }
-   // Round the independent pit exit inside La Source before joining the downhill straight.
-   const raw=this.centers;
-   this.centers=raw.map((p,i)=>{
-     const station=i-420;
-     const bend=T.MathUtils.smoothstep(station,95,185)*(1-T.MathUtils.smoothstep(station,305,385));
-     const sigma=station<-300 ? 2.5 : 7+29*bend;
-     const result=new T.Vector3();let total=0;
-     for(let j=Math.max(0,i-Math.ceil(3*sigma));j<=Math.min(raw.length-1,i+3*sigma);j++){
-       const weight=Math.exp(-.5*((j-i)/sigma)**2);
-       result.addScaledVector(raw[j],weight);total+=weight;
-     }
-     return result.divideScalar(total);
-   });
+
    // The pit shortcut covers less ground than T1. Interpolate its grade
    // by its own horizontal arc length and match the slopes at both joins.
-   const first=420+125,last=420+365,distances=[0];
+   const first=420+171,last=420+316,distances=[0];
    const horizontal=(a:T.Vector3,b:T.Vector3)=>Math.hypot(b.x-a.x,b.z-a.z);
    const grade=(a:T.Vector3,b:T.Vector3)=>(b.y-a.y)/horizontal(a,b);
    const entry=this.centers[first],exit=this.centers[last];
@@ -43,20 +39,15 @@ export class PitLane {
        length*t*u*(u*startGrade-t*endGrade);
    }
  }
- private offset(s:number){
-   let i=1;
-   while(i<stations.length-1 && stations[i]<s)i++;
-   const t=T.MathUtils.smoothstep(s,stations[i-1],stations[i]);
-   return T.MathUtils.lerp(offsets[i-1],offsets[i],t);
- }
+ private xy(s:number){const p=this.track.rawSample(s);return [p.x,p.z];}
  point(s:number){
    const t=T.MathUtils.clamp(s+420,0,this.centers.length-1),i=Math.floor(t);
    return this.centers[i].clone().lerp(this.centers[Math.min(i+1,this.centers.length-1)],t-i);
  }
  blend(s:number){
-   return T.MathUtils.smoothstep(s,-420,-380)*(1-T.MathUtils.smoothstep(s,445,490));
+   return T.MathUtils.smoothstep(s,-378,-353)*(1-T.MathUtils.smoothstep(s,376,485));
  }
- private addFace(a:T.Vector3,b:T.Vector3,c:T.Vector3){
+ addFace(a:T.Vector3,b:T.Vector3,c:T.Vector3){
    const triangle=new T.Triangle(a,b,c);
    const bounds=new T.Box3().setFromPoints([a,b,c]);
    for(let x=Math.floor(bounds.min.x/8);x<=Math.floor(bounds.max.x/8);x++)
@@ -82,15 +73,10 @@ export class PitLane {
    const posts:T.Vector3[]=[];
    const baseHeight=.55,meshHeight=1.45,pitch=.16;
    const row=(s:number)=>{
-     const roadEdge=this.track.width(s,-1);
-     const center=this.point(s),edge=this.track.point(s,-roadEdge);
-     const outward=this.track.point(s,-roadEdge-1).sub(edge).normalize();
-     const separation=center.sub(edge).dot(outward);
-     // The median narrows around La Source. Follow the track edge until
-     // the two drivable corridors converge at the entry or exit taper.
-     if(separation<1.25)return undefined;
-     return edge.addScaledVector(outward,Math.max(.02,(separation-halfWidth)/2));
-
+     const {inner,left}=this.edges(s);
+     const foot=inner.addScaledVector(left,.4);
+     return this.mainHeightNear(foot.clone().addScaledVector(left,.6))===undefined &&
+       this.mainHeightNear(foot)===undefined ? foot : undefined;
    };
    let previous:T.Vector3|undefined;
    for(let s=-420;s<=490;s+=4){
@@ -131,53 +117,90 @@ export class PitLane {
    posts.forEach((p,i)=>uprights.setMatrixAt(i,new T.Matrix4().makeTranslation(p.x,p.y+1,p.z)));
    group.add(uprights);return group;
  }
- // Extend only the exposed portion of each main-road cross-section.
- // The inner edge is clipped to the exact asphalt vertex, including fractional kerb rows.
+ private mainCells=new Map<string,T.Triangle[]>();
+ private mainHeightNear(p:T.Vector3){
+   const cell=this.mainCells.get(Math.floor(p.x/8)+','+Math.floor(p.z/8));
+   if(!cell)return undefined;
+   for(const tri of cell){
+     const {a,b,c}=tri;
+     const cross=(u:T.Vector3,v:T.Vector3)=>(v.x-u.x)*(p.z-u.z)-(v.z-u.z)*(p.x-u.x);
+     const sides=[cross(a,b),cross(b,c),cross(c,a)];
+     if(sides.every(v=>v>=0)||sides.every(v=>v<=0))return true;
+   }
+ }
+ private edges(s:number){
+   const center=this.point(s),dir=this.point(s+1).sub(this.point(s-1));
+   const left=new T.Vector3(dir.z,0,-dir.x).normalize();
+   return {left,inner:center.clone().addScaledVector(left,halfWidth),outer:center.clone().addScaledVector(left,-halfWidth)};
+ }
  surface(rows:{s:number,left:T.Vector3,right:T.Vector3}[],asphalt:T.Material){
-   const pos:number[]=[],uv:number[]=[],median:number[]=[],paint:number[]=[],colors:number[]=[];
-   const stripe=(a:T.Vector3,b:T.Vector3,c:T.Vector3,d:T.Vector3,color:T.Color)=>{
-     for(const v of [a,b,c,b,d,c]){paint.push(v.x,v.y+.007,v.z);colors.push(color.r,color.g,color.b);}
-   };
-   const white=new T.Color(0xd4ccc0),yellow=new T.Color(0xd4a64e);
-   const section=(row:typeof rows[number])=>{
-     const s=row.s>this.track.length/2?row.s-this.track.length:row.s;
-     const normal=row.right.clone().sub(row.left).normalize();
-     const pit=this.point(s);
-     const tangent=this.point(s+1).sub(this.point(s-1));
-     const outward=new T.Vector3(tangent.z,0,-tangent.x).normalize();
-     if(outward.dot(normal)<0)outward.negate();
-     const outside=pit.clone().addScaledVector(outward,halfWidth);
-     const inside=pit.clone().addScaledVector(outward,-halfWidth);
-     const far=outside.clone().sub(row.right).dot(normal);
-     const near=Math.max(0,inside.clone().sub(row.right).dot(normal));
-     const outer=far>0?outside:row.right,inner=near>0?inside:row.right;
-     const at=(d:number)=>inner.clone().lerp(outer,(d-near)/Math.max(.0001,far-near));
-     return {s,near,far:Math.max(0,far),at,inner,outer};
-   };
+   const pos:number[]=[],uv:number[]=[],paint:number[]=[],colors:number[]=[];
    for(let i=1;i<rows.length;i++){
      const a=rows[i-1],b=rows[i];
      if(a.s>510 && b.s<this.track.length-440)continue;
      this.addFace(a.left,b.left,a.right);this.addFace(a.right,b.left,b.right);
-     const l=section(a),r=section(b);
-     if(l.far===0 && r.far===0)continue;
-     if(l.near>0 || r.near>0){
-       for(const p of [a.right,l.inner,b.right,l.inner,r.inner,b.right])median.push(p.x,p.y-.012,p.z);
+   }
+   this.cells.forEach((faces,key)=>this.mainCells.set(key,[...faces]));
+   for(let i=1;i<rows.length;i++){
+     const a=rows[i-1],b=rows[i];
+     if(a.s<=510 || b.s>=this.track.length-440)continue;
+     this.addFace(a.left,b.left,a.right);this.addFace(a.right,b.left,b.right);
+   }
+   // Subtract the actual main-road triangles in plan view. Each surviving
+   // polygon retains its pit-lane elevation and cannot cross the merge seam.
+   const emit=(polygon:T.Vector3[],stripe=false,box=false)=>{
+     const bounds=new T.Box3().setFromPoints(polygon),near=new Set<T.Triangle>();
+     for(let x=Math.floor(bounds.min.x/8);x<=Math.floor(bounds.max.x/8);x++)
+       for(let z=Math.floor(bounds.min.z/8);z<=Math.floor(bounds.max.z/8);z++)
+         this.mainCells.get(x+','+z)?.forEach(f=>near.add(f));
+     let pieces=[polygon];
+     for(const {a,b,c} of near){
+       const sign=Math.sign((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x));
+       if(!sign)continue;
+       const remaining:T.Vector3[][]=[];
+       for(const piece of pieces){
+         let inside=piece;
+         for(const [u,v] of [[a,b],[b,c],[c,a]]){
+           const d=(p:T.Vector3)=>sign*((v.x-u.x)*(p.z-u.z)-(v.z-u.z)*(p.x-u.x));
+           if(inside.every(p=>d(p)>=0))continue;
+           if(inside.every(p=>d(p)<=0)){remaining.push(inside);inside=[];break;}
+           const keep:T.Vector3[]=[],outside:T.Vector3[]=[];
+           inside.forEach((p,j)=>{
+             const q=inside[(j+1)%inside.length],dp=d(p),dq=d(q);
+             if(dp>=0)keep.push(p);
+             if(dp<=0)outside.push(p);
+             if(dp*dq<0){const cut=p.clone().lerp(q,dp/(dp-dq));keep.push(cut);outside.push(cut);}
+           });
+           if(outside.length>=3)remaining.push(outside);
+           inside=keep;
+         }
+       }
+       pieces=remaining;
      }
-     this.addFace(l.inner,l.outer,r.inner);this.addFace(l.outer,r.outer,r.inner);
-     for(const [v,d,s] of [[l.inner,l.near,a.s],[l.outer,l.far,a.s],[r.inner,r.near,b.s],[l.outer,l.far,a.s],[r.outer,r.far,b.s],[r.inner,r.near,b.s]] as const){
-       pos.push(v.x,v.y,v.z);uv.push(-d/2,s/2);
+     for(const poly of pieces)for(let j=1;j+1<poly.length;j++){
+       const tri=[poly[0],poly[j],poly[j+1]] as const;
+       if(!stripe)this.addFace(...tri);
+       for(const p of tri){
+         if(stripe){paint.push(p.x,p.y+.007,p.z);colors.push(...(box?[.68,.39,.08]:[.68,.63,.54]));}
+         else {pos.push(...p.toArray());uv.push(p.x/2,p.z/2);}
+       }
      }
-     stripe(l.outer,l.at(Math.max(l.near,l.far-.13)),r.outer,r.at(Math.max(r.near,r.far-.13)),white);
-     if(l.near>0 && r.near>0)stripe(l.inner,l.at(l.near+.13),r.inner,r.at(r.near+.13),white);
-     if(l.s>=-13 && r.s<=-7)for(const side of [-1,1]){
-       const x=(l.near+l.far)/2+side*1.5,y=(r.near+r.far)/2+side*1.5;
-       stripe(l.at(x),l.at(x+.12),r.at(y),r.at(y+.12),yellow);
+   };
+   for(let s=-420;s<490;s++){
+     const a=this.edges(s),b=this.edges(s+1);
+     emit([a.inner,b.inner,a.outer]);emit([a.outer,b.inner,b.outer]);
+     for(const side of [-1,1]){
+       if(s>=-13 && s<-7){
+         const offset=side*1.5;
+         const mark=(station:number,x:number)=>this.point(station).addScaledVector(this.edges(station).left,x);
+         emit([mark(s,offset),mark(s+1,offset),mark(s+1,offset+.12),mark(s,offset+.12)],true,true);
+       }
+       const edge=side>0?'inner':'outer';
+       emit([a[edge],b[edge],b[edge].clone().addScaledVector(b.left,-side*.12),a[edge].clone().addScaledVector(a.left,-side*.12)],true);
      }
    }
-   const base=new T.BufferGeometry();base.setAttribute('position',new T.Float32BufferAttribute(pos,3));
-   base.setAttribute('uv',new T.Float32BufferAttribute(uv,2));base.computeVertexNormals();
-   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(paint,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-   const slab=new T.BufferGeometry();slab.setAttribute('position',new T.Float32BufferAttribute(median,3));slab.computeVertexNormals();
-   return {road:new T.Mesh(base,asphalt),median:new T.Mesh(slab,new T.MeshStandardMaterial({color:0x77766d,roughness:1,side:T.DoubleSide})),paint:new T.Mesh(g,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide}))};
+   const geometry=(vertices:number[])=>new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+   const base=geometry(pos);base.setAttribute('uv',new T.Float32BufferAttribute(uv,2));base.computeVertexNormals();
+   return {road:new T.Mesh(base,asphalt),paint:new T.Mesh(geometry(paint).setAttribute('color',new T.Float32BufferAttribute(colors,3)),new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide}))};
  }
 }

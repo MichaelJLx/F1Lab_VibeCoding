@@ -1,5 +1,7 @@
 // Engineering estimates for the current model at full straight-mode travel.
 export const activeAero={dragReduction:.17,downforceReduction:.23,frontBalanceChange:.015};
+// FIA Belgian GP 2026, Doc 7: normal-grip activation offsets from the mapped turns.
+// End stations are local estimates for the next corner approach.
 export function straightModeZone(s:number,length:number){
   const turns=[6637,238,1127,5073,5982];
   const after=[190,140,60,140,80],end=[145,835,2150,5700,6480];

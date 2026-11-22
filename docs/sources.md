@@ -28,3 +28,5 @@
 Eau Rouge 至 Raidillon 的局部高程使用佩雷兹 2024 年比利时站第 44 圈的位置数据。处理脚本将高度对齐至赛道里程，以 30 米尺度平滑，再将局部高差约束到官方地图标高。Bruxelles 的局部 12 米路宽与 Bus Stop 路肩渐变断面采用工程估值。[原始位置样本](../data/tracks/spa/flying/location.json) · [配准高程](../data/tracks/spa/raidillon-profile.json)
 
 轻量维修区路带参考赛事图的 Bus Stop 入口与 La Source 后方出口。中心线、6.4 米路宽、停车位、80 km/h 限速区域和模拟转播机位采用近似位置。[FIA 比利时站赛道及维修区图](https://www.fia.com/system/files/decision-document/2025_belgian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exits_quarantine_zone_and_red_zones.pdf)
+
+维修区水平中心线采用 © OpenStreetMap contributors 的 [Pit Lane（way 323851541）](https://www.openstreetmap.org/way/323851541)，数据遵循 [ODbL 1.0](https://www.openstreetmap.org/copyright)。[本地坐标](../src/tracks/spa-pit-path.json) 每行依次为邻近主赛道里程、东向米数、北向米数，原点与 Spa 主路相同。里程用于挂接计时和路段状态；La Source 内侧捷径按维修区自身弧长插值。路宽、高程和两端过渡采用工程估值。

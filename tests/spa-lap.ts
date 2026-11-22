@@ -96,6 +96,7 @@ let kemmelSamples=0,kemmelFullThrottle=0;
 for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  const lap=car.lap,station=car.s,time=car.elapsed;
  car.tick(1/60);
+ if(car.lap===1 && car.s<835 || car.lastLap && car.s-track.length>=-420)assert.equal(car.aeroZone,0,'pit route cannot activate straight mode');
  if(car.lap===1 && car.s>160 && car.s<300)assert.ok(Math.min(car.dynamics.tyres.FR.omega,car.dynamics.tyres.RR.omega)>0);
  if(car.timed && car.s>=0 && car.s<50)crossingBrake=Math.max(crossingBrake,car.gearbox.brake);
  if(car.timed && car.s>200 && car.s<280 && car.dynamics.suspension.surfaceGrip.FR<.99)t1Kerb++;

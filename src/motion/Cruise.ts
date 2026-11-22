@@ -338,7 +338,7 @@ export class Cruise {
    const span=T.MathUtils.clamp(1/Math.sqrt(Math.max(.001,local)),5,18);
    const k=Math.abs(this.curvature(d,span));
    curvatures[i]=k;this.lateralCurve[i]=k;
-   openings[i]=straightModeZone(this.track.wrap(spaData.grid.s+d),this.track.length)?1:0;
+   openings[i]=this.routeAeroZone(spaData.grid.s+d)?1:0;
    let lo=0,hi=topSpeed;
    for(let j=0;j<12;j++){
      const v=(hi+lo)/2;
@@ -365,7 +365,10 @@ export class Cruise {
    for(let i=n-1;i>=0;i--){
      const v=speeds[i+1],capacity=grip(v,openings[i],this.verticalCurve[i]);
      const available=Math.sqrt(Math.max(0,capacity**2-(curvatures[i]*v*v)**2));
-     const brake=Math.min(12+.0029*v*v,.80*available+aeroForces(v,openings[i]).drag/mass);
+     const pit=this.pitStation(spaData.grid.s+i*this.planStep);
+     const attack=this.timed ? 1-T.MathUtils.smoothstep(curvatures[i]*v*v,2,10) : 0;
+     const brake=Math.min(pit>=-300 && pit<=325 ? 4 : 12+3*attack+.0029*v*v,
+       (.80+.08*attack)*available+aeroForces(v,openings[i]).drag/mass);
      speeds[i]=Math.min(speeds[i],Math.sqrt(v*v+2*brake*this.pathLengths[i]));
    }
    if(pass===0)this.brakingLimit=speeds.slice();
@@ -399,6 +402,14 @@ export class Cruise {
  }
  plannedSpeed(){const t=this.distance/this.planStep,i=Math.min(this.speedPlan.length-2,Math.floor(t));return T.MathUtils.lerp(this.speedPlan[i],this.speedPlan[i+1],t-i);}
 
+ private routeAeroZone(station:number){
+   const zone=straightModeZone(this.track.wrap(station),this.track.length);
+   const pit=this.pitStation(station);
+   if(pit>=-420 && pit<=490)return 0;
+   // An out-lap joins A2 downstream of its activation line.
+   if(this.lap===1 && zone===2)return 0;
+   return zone;
+ }
  private pitStation(station:number){
    if(this.lap===1)return station;
    return this.lastLap?station-this.track.length:Infinity;
@@ -413,7 +424,7 @@ export class Cruise {
    }
    return path;
  }
- pose(){const position=this.point(),forward=this.point(this.distance+2).sub(this.point(this.distance-2)).normalize(),left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();position.addScaledVector(left,this.dynamics.offset);const quaternion=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward));quaternion.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),this.dynamics.headingError));return {position,quaternion};}
+ pose(){const position=this.point(),forward=this.point(this.distance+2).sub(this.point(this.distance-2)).normalize(),left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();position.addScaledVector(left,this.dynamics.offset);position.y=this.track.pit?.heightAt(position)??position.y;const quaternion=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward));quaternion.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),this.dynamics.headingError));return {position,quaternion};}
  curvature(distance=this.distance,span=4){const a=this.point(distance-span),b=this.point(distance),c=this.point(distance+span),u=b.clone().sub(a),v=c.clone().sub(b);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.1,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
  sampleContacts(h:number,{position,quaternion}=this.pose()){
    const suspension=this.dynamics.suspension;
@@ -427,9 +438,8 @@ export class Cruise {
      const tyre=this.dynamics.tyres[key];
      const rise=this.track.curbRise(this.track.wrap(this.s+local.z),hub,axle);
      suspension.surfaceGrip[key]=1-.14*Math.min(1,rise/.035);
-     const station=this.track.wrap(this.s+local.z);
-     const asphalt=station<510 || station>this.track.length-440 ? this.track.pit?.heightAt(hub) : undefined;
-     const height=(asphalt===undefined?0:asphalt-hub.y)+rise-tyre.wear[tyre.patch];
+     const asphalt=this.track.pit?.heightAt(hub);
+     const height=(asphalt===undefined?rise:asphalt-hub.y)-tyre.wear[tyre.patch];
      // Smooth the road input over the rolling contact patch.
      const change=(height-suspension.ground[key])*(1-Math.exp(-h/.018));
      suspension.ground[key]+=change;
@@ -454,7 +464,7 @@ export class Cruise {
  // Build charge on the out-lap and deploy on the run to the timing line.
  const deploy=this.timed || (this.lap===1 && this.distance>this.track.length-350);
  const availableForce=this.gearbox.update(h,drivenSpeed,deploy);
- const desiredAcceleration=T.MathUtils.clamp((target-this.speed)*4+feedforward,-40,14);this.accelerationCommand+=T.MathUtils.clamp(desiredAcceleration-this.accelerationCommand,-180*h,100*h);const tangent=this.point(this.distance+2).sub(this.point(this.distance-2)),slope=Math.atan2(tangent.y,Math.hypot(tangent.x,tangent.z));const pose=this.pose();this.sampleContacts(h,pose);const zone=straightModeZone(this.track.wrap(this.s),this.track.length);
+ const desiredAcceleration=T.MathUtils.clamp((target-this.speed)*4+feedforward,-40,14);this.accelerationCommand+=T.MathUtils.clamp(desiredAcceleration-this.accelerationCommand,-180*h,100*h);const tangent=this.point(this.distance+2).sub(this.point(this.distance-2)),slope=Math.atan2(tangent.y,Math.hypot(tangent.x,tangent.z));const pose=this.pose();this.sampleContacts(h,pose);const zone=this.routeAeroZone(this.s);
  if(this.previousZone>=0 && zone && zone!==this.previousZone)this.aeroZone=zone;
  if(!zone || this.accelerationCommand<-.5)this.aeroZone=0;
  this.previousZone=zone;
@@ -490,9 +500,10 @@ export class Cruise {
    if(nearExit && this.accelerationCommand>=-.6*pickup){
      request+=pickup*.12*this.dynamics.rearDriveReserve;
    }
-   if(request>0)request*=1-T.MathUtils.smoothstep(slip,.065,.14);
+   const settledYaw=yawExcess<.08 && this.dynamics.steer*this.dynamics.yawRate>=0;
+   if(request>0)request*=1-T.MathUtils.smoothstep(slip,settledYaw?.075:.065,.14);
    if(request<0 && frontLock>.22)request*=1-.55*T.MathUtils.smoothstep(frontLock,.22,.9);
-   if((slip>.085 || frontLock>.6) && this.speed>10)this.incidents[corner]=1;
+   if((oversteer || frontLock>.6) && this.speed>10)this.incidents[corner]=1;
  }
  // Trail the brake into turn-in. As lateral demand grows, release pressure
  // within the available tyre-force ellipse. Abort the trail on lock or power pickup.
@@ -506,6 +517,11 @@ export class Cruise {
    this.brakeForce=Math.min(reserve,Math.max(wanted,this.brakeForce-releaseRate*h));
    request=-this.brakeForce;
  }else this.brakeForce=0;
+ if(localPitS>=-420 && localPitS<=325 && request<0){
+   // Ease the pedal when an inside tyre unloads on the narrow pit approach.
+   const wheelSlip=Math.max(frontLock,-this.dynamics.tyres.RL.slip,-this.dynamics.tyres.RR.slip);
+   request*=1-T.MathUtils.smoothstep(wheelSlip,.08,.35);
+ }
  this.gearbox.throttle=Math.min(1,Math.max(0,request/Math.max(1,availableForce)));
  this.gearbox.brake=Math.min(1,Math.max(0,-request/(40*lateralParameters.mass)));
  this.speed=this.dynamics.longitudinalStep(h,this.speed,Math.min(request,availableForce),slope,vertical,opening);
