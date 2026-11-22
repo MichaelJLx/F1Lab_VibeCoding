@@ -69,6 +69,8 @@ function checkExit(pose:ReturnType<Cruise['pose']>){
    assert.ok(y!==undefined && Math.abs(y-contact.y)<.08,'wheel support at pit exit '+car.s);
  }
 }
+let t1Kerb=0, crossingBrake=0, lineChange=0;
+let previousLine:Vector3[]|undefined;
 let kerbSamples=0,trailSamples=0;
 const stats=turnStations.map((_,i)=>({turn:i+1,error:0,g:0,kph:0,steer:0,edge:0}));
 car.lapCount=99;assert.equal(car.lapCount,44);
@@ -94,6 +96,13 @@ let kemmelSamples=0,kemmelFullThrottle=0;
 for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  const lap=car.lap,station=car.s,time=car.elapsed;
  car.tick(1/60);
+ if(car.lap===1 && car.s>160 && car.s<300)assert.ok(Math.min(car.dynamics.tyres.FR.omega,car.dynamics.tyres.RR.omega)>0);
+ if(car.timed && car.s>=0 && car.s<50)crossingBrake=Math.max(crossingBrake,car.gearbox.brake);
+ if(car.timed && car.s>200 && car.s<280 && car.dynamics.suspension.surfaceGrip.FR<.99)t1Kerb++;
+ if(car.timed && car.racePath.points!==previousLine){
+   if(previousLine)lineChange=Math.max(lineChange,...previousLine.map((p,i)=>p.distanceTo(car.racePath.points[i])));
+   previousLine=car.racePath.points;
+ }
  if(car.timed && car.s>=2855 && car.s<=2885 || car.timed && car.s>=3130 && car.s<=3160){
    const d=car.dynamics;
    const rearSlip=Math.abs(Math.atan2(d.vy-1.636*d.yawRate,car.speed))*180/Math.PI;
@@ -146,6 +155,9 @@ for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
 }
 assert.ok(kemmelFullThrottle>kemmelSamples*.6,"Kemmel acceleration should use full throttle");
 assert.equal(car.history.length,car.lapCount);
+console.log('T1 inner kerb frames / timing straight peak brake / line change (m)',t1Kerb,crossingBrake,lineChange);
+assert.ok(crossingBrake<.02);
+if(car.lapCount>=5)assert.ok(lineChange>.1);
 
 console.log('Eau Rouge–Raidillon',fastComplex);
 assert.ok(fastComplex.peakBrake<.15 && fastComplex.minimum>275,'dry flying lap through Eau Rouge–Raidillon');

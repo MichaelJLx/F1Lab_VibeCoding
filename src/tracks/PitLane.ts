@@ -17,8 +17,8 @@ export class PitLane {
    const raw=this.centers;
    this.centers=raw.map((p,i)=>{
      const station=i-420;
-     const bend=T.MathUtils.smoothstep(station,140,205)*(1-T.MathUtils.smoothstep(station,285,345));
-     const sigma=station<-300 ? 2.5 : 7+17*bend;
+     const bend=T.MathUtils.smoothstep(station,95,185)*(1-T.MathUtils.smoothstep(station,305,385));
+     const sigma=station<-300 ? 2.5 : 7+29*bend;
      const result=new T.Vector3();let total=0;
      for(let j=Math.max(0,i-Math.ceil(3*sigma));j<=Math.min(raw.length-1,i+3*sigma);j++){
        const weight=Math.exp(-.5*((j-i)/sigma)**2);
@@ -28,7 +28,7 @@ export class PitLane {
    });
    // The pit shortcut covers less ground than T1. Interpolate its grade
    // by its own horizontal arc length and match the slopes at both joins.
-   const first=420+160,last=420+340,distances=[0];
+   const first=420+125,last=420+365,distances=[0];
    const horizontal=(a:T.Vector3,b:T.Vector3)=>Math.hypot(b.x-a.x,b.z-a.z);
    const grade=(a:T.Vector3,b:T.Vector3)=>(b.y-a.y)/horizontal(a,b);
    const entry=this.centers[first],exit=this.centers[last];

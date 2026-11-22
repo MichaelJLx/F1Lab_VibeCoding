@@ -394,7 +394,7 @@ export class Inspector {
    const wheel=this.wheels[key];
    fx.shadow.position.y=-wheel.pivot.position.y+.009;
    fx.shadow.visible=!under && this.roadStyle!=='outline';
-   const exposure=T.MathUtils.smoothstep(this.cruise.speed/wheel.radius,15,160);
+   const exposure=T.MathUtils.smoothstep(this.cruise.dynamics.tyres[key as Corner].omega,15,160);
    fx.mat.opacity=.24*exposure;fx.streaks.visible=exposure>.01;
  }
  this.shadow.visible=!under && this.roadStyle!=='outline';

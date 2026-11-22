@@ -172,8 +172,13 @@ export class Cruise {
      // Change both apexes coherently; keep alternatives inside the same track corridor.
      const compromise=(weights[9]+weights[10])*.5;
      const w=T.MathUtils.lerp(T.MathUtils.lerp((.56+.42*pace)*(1-kerb*(1-pace)),.96,linked),.96-.40*compromise,pouhon);
-     const lineWeight=this.timed ? .92+.07*w : w;
+     const lineWeight=this.timed ? .98-.18*weights[region(s)] : w;
      point.lerp(this.track.point(s,fastLine[i]),lineWeight);
+     if(this.timed && s>165 && s<310){
+       const cut=Math.exp(-(((s-244)/30)**2))*T.MathUtils.smoothstep(Math.min(s-165,310-s),0,15);
+       const inside=-this.track.width(s,-1)+.76;
+       point.lerp(this.track.point(s,inside),cut*(.90+.1*weights[0]));
+     }
    });
    this.racePath=new T.CatmullRomCurve3(points,true);
    if(this.pathCache.size>=12)this.pathCache.delete(this.pathCache.keys().next().value!);
@@ -277,6 +282,16 @@ export class Cruise {
    const quickest=totals.indexOf(Math.min(...totals));
    if(totals[quickest]+.002<joinedTime){
      this.weights=choices[quickest];this.setPath(this.weights);this.buildSpeedPlan();
+   }
+   if(this.timed && this.lap>2){
+     const baseline=Math.min(joinedTime,totals[quickest]);
+     let gain=0,trial=-1;
+     for(let k=0;k<choices.length;k++){
+       const novel=choices[k].filter((w,j)=>Math.abs(w-this.weights[j])>.05 && !this.observations[j].has(w)).length;
+       const value=novel/(1+Math.max(0,totals[k]-baseline)*10);
+       if(totals[k]<baseline+.35 && value>gain){gain=value;trial=k;}
+     }
+     if(trial>=0){this.weights=choices[trial];this.setPath(this.weights);this.buildSpeedPlan();}
    }
    this.showPlan();
  }
@@ -471,7 +486,7 @@ export class Cruise {
    const next=Math.min(index+1,this.brakingLimit.length-1);
    const limit=Math.min(this.brakingLimit[index],this.brakingLimit[next]);
    const lateral=this.lateralCurve[index]*this.speed**2;
-   if(feedforward>=0 && lateral<3 && this.speed+1<limit && slip<.035)request=availableForce;
+   if(lateral<3 && this.speed+1<limit && slip<.035 && (feedforward>=0 || request<0 && this.speed+2<limit))request=availableForce;
    if(nearExit && this.accelerationCommand>=-.6*pickup){
      request+=pickup*.12*this.dynamics.rearDriveReserve;
    }
