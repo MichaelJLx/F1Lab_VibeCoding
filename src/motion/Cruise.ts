@@ -226,6 +226,9 @@ export class Cruise {
    this.count=request.count;this.lap=request.lap;this.weights=request.weights;this.memory.slides=request.slides.map(mark=>({...mark}));
    this.observations=request.observations.map(entries=>new Map(entries));
    this.nextPath();
+   // The live driver applies current slide memory when adopting this geometry.
+   this.memory.slides=[];
+   this.buildSpeedPlan();
    const g=this.line.mesh.geometry;
    return {lap:this.lap,weights:this.weights,points:this.racePath.points.map(p=>p.toArray()),
      speed:this.speedPlan,vertical:this.verticalCurve,lateral:this.lateralCurve,braking:this.brakingLimit,lengths:this.pathLengths,
@@ -252,7 +255,7 @@ export class Cruise {
    const busStop=([early,exit]:number[])=>best.map((w,i)=>i===17?early:i===18?exit:w);
    const linked=(a:number,b:number)=>best.map((v,i)=>i===a?.25:i===b?.85:v);
    const choices=[best,linked(7,8),linked(9,10),busStop([1,0]),busStop([0,1]),best.map(()=>1),...[-.2,.2].map(step=>best.map(w=>Math.round(10*T.MathUtils.clamp(w+step,0,1))/10))];
-   const scores=choices.map(weights=>{
+   const forecast=(weights:number[])=>{
      this.setPath(weights);this.buildSpeedPlan();
      const times=blank();
      for(let i=0;i<this.speedPlan.length-1;i++){
@@ -261,7 +264,16 @@ export class Cruise {
        times[j]+=2*this.pathLengths[i]/Math.max(1,this.speedPlan[i]+this.speedPlan[i+1]);
      }
      return times;
+   };
+   const baseline=forecast(best);
+   // Compare measured split deltas on tested lines. For an untested line,
+   // compare its physics forecast with the same reference geometry.
+   const score=(weights:number[])=>forecast(weights).map((time,j)=>{
+     const observed=this.observations[j].get(weights[j]);
+     const reference=this.observations[j].get(best[j]);
+     return observed!==undefined && reference!==undefined ? observed-reference : time-baseline[j];
    });
+   const scores=choices.map(score);
    // Score linked corners through their common exit using one complete candidate.
    this.weights=[...best];
    const groups=[[0],[1,2,3],[4,5,6],[7,8],[9,10],[11,12],[13,14],[15,16],[17,18]];
@@ -269,30 +281,15 @@ export class Cruise {
      const cost=(k:number)=>group.reduce((sum,j)=>sum+scores[k][j],0);
      let selected=0;
      for(let k=1;k<choices.length;k++){
-       if(cost(k)<cost(selected)-.002 && group.some(j=>!this.observations[j].has(choices[k][j])))selected=k;
+       if(cost(k)<cost(selected)-.002)selected=k;
      }
      for(const j of group)this.weights[j]=choices[selected][j];
    }
-   this.setPath(this.weights);this.buildSpeedPlan();
-   // Re-evaluate the joined line: a quicker apex can spoil the following exit.
-   let joinedTime=0;
-   for(let i=0;i<this.pathLengths.length;i++)
-     joinedTime+=2*this.pathLengths[i]/Math.max(1,this.speedPlan[i]+this.speedPlan[i+1]);
+   const joinedTime=score(this.weights).reduce((sum,time)=>sum+time,0);
    const totals=scores.map(regions=>regions.reduce((sum,time)=>sum+time,0));
    const quickest=totals.indexOf(Math.min(...totals));
-   if(totals[quickest]+.002<joinedTime){
-     this.weights=choices[quickest];this.setPath(this.weights);this.buildSpeedPlan();
-   }
-   if(this.timed && this.lap>2){
-     const baseline=Math.min(joinedTime,totals[quickest]);
-     let gain=0,trial=-1;
-     for(let k=0;k<choices.length;k++){
-       const novel=choices[k].filter((w,j)=>Math.abs(w-this.weights[j])>.05 && !this.observations[j].has(w)).length;
-       const value=novel/(1+Math.max(0,totals[k]-baseline)*10);
-       if(totals[k]<baseline+.35 && value>gain){gain=value;trial=k;}
-     }
-     if(trial>=0){this.weights=choices[trial];this.setPath(this.weights);this.buildSpeedPlan();}
-   }
+   if(totals[quickest]+.002<joinedTime)this.weights=choices[quickest];
+   this.setPath(this.weights);this.buildSpeedPlan();
    this.showPlan();
  }
  showPlan(){this.line.update(station=>this.point(this.track.wrap(station-spaData.grid.s)));}
@@ -390,8 +387,8 @@ export class Cruise {
      const available=Math.min(remaining(capacity.front,ay*frontShare)/.57,remaining(capacity.rear,ay*(1-frontShare))/.43);
      const pit=this.pitStation(spaData.grid.s+i*this.planStep);
      const attack=this.timed ? 1-T.MathUtils.smoothstep(curvatures[i]*v*v,2,10) : 0;
-     const brake=Math.min(pit>=-300 && pit<=325 ? 4 : 12+3*attack+.0029*v*v,
-       (.80+.08*attack)*available+capacity.drag/mass);
+     const brake=Math.min(pit>=-300 && pit<=325 ? 4 : 12+5*attack+.0029*v*v,
+       (.80+.15*attack)*available+capacity.drag/mass);
      speeds[i]=Math.min(speeds[i],Math.sqrt(v*v+2*brake*this.pathLengths[i]));
    }
    if(pass===0)this.brakingLimit=speeds.slice();
@@ -415,7 +412,7 @@ export class Cruise {
      for(let offset=-approach;offset<=exit;offset++){
        const i=(centre+offset+n)%n;
        const d=this.track.wrap(spaData.grid.s+i*this.planStep-mark.station+this.track.length/2)-this.track.length/2;
-       const dv2=d<0?2*9*Math.max(0,-d-16):2*11*Math.max(0,d-10);
+       const dv2=d<0?2*15*Math.max(0,-d-8):2*11*Math.max(0,d-10);
        const limit=Math.sqrt(mark.safeSpeed**2+dv2);
        this.speedPlan[i]=Math.min(this.speedPlan[i],limit);
        this.brakingLimit[i]=Math.min(this.brakingLimit[i],limit);
@@ -467,11 +464,10 @@ export class Cruise {
      const axle=new T.Vector3(1,0,0);
      if(key[0]==='F')axle.applyAxisAngle(new T.Vector3(0,1,0),this.dynamics.wheelAngle(local.x));
      axle.applyQuaternion(quaternion).multiplyScalar(key[0]==='F'?.11:.14);
-     const tyre=this.dynamics.tyres[key];
      const rise=this.track.curbRise(this.track.wrap(this.s+local.z),hub,axle);
      suspension.surfaceGrip[key]=1-.14*Math.min(1,rise/.035);
      const asphalt=this.track.pit?.heightAt(hub);
-     const height=(asphalt===undefined?rise:asphalt-hub.y)-tyre.wear[tyre.patch];
+     const height=asphalt===undefined?rise:asphalt-hub.y;
      // Smooth the road input over the rolling contact patch.
      const change=(height-suspension.ground[key])*(1-Math.exp(-h/.018));
      suspension.ground[key]+=change;
@@ -493,9 +489,7 @@ export class Cruise {
  const feedforward=target>=this.limitKmh/3.6 || this.lastLap && remaining<300?0:(v1*v1-v0*v0)/(2*Math.max(.1,this.pathLengths[index]));
  const {RL,RR}=this.dynamics.tyres;
  const drivenSpeed=(RL.omega*RL.radius+RR.omega*RR.radius)/2;
- // Build charge on the out-lap and deploy on the run to the timing line.
- const deploy=this.timed || (this.lap===1 && this.distance>this.track.length-350);
- const availableForce=this.gearbox.update(h,drivenSpeed,deploy);
+ const availableForce=this.gearbox.update(h,drivenSpeed);
  const desiredAcceleration=T.MathUtils.clamp((target-this.speed)*4+feedforward,-40,14);this.accelerationCommand+=T.MathUtils.clamp(desiredAcceleration-this.accelerationCommand,-180*h,100*h);const tangent=this.point(this.distance+2).sub(this.point(this.distance-2)),slope=Math.atan2(tangent.y,Math.hypot(tangent.x,tangent.z));const pose=this.pose();this.sampleContacts(h,pose);const zone=this.routeAeroZone(this.s);
  if(this.previousZone>=0 && zone && zone!==this.previousZone)this.aeroZone=zone;
  if(!zone || this.accelerationCommand<-.5)this.aeroZone=0;
@@ -558,7 +552,7 @@ export class Cruise {
  this.gearbox.throttle=Math.min(1,Math.max(0,request/Math.max(1,availableForce)));
  this.gearbox.brake=Math.min(1,Math.max(0,-request/(40*lateralParameters.mass)));
  this.speed=this.dynamics.longitudinalStep(h,this.speed,Math.min(request,availableForce),slope,vertical,opening);
- this.gearbox.account(h,this.speed,this.dynamics.longitudinalForce,this.dynamics.wheelFx.RL+this.dynamics.wheelFx.RR);
+ this.gearbox.account(this.speed,this.dynamics.longitudinalForce);
  this.finishHold=Math.max(0,this.finishHold-h);
  const before=pose.position;
  const a=Math.max(0,this.distance-.5),b=Math.min(this.track.length,this.distance+.5),metric=this.point(b).distanceTo(this.point(a))/Math.max(.01,b-a);
@@ -634,10 +628,11 @@ export class Cruise {
        }
      });
      for(const mark of this.memory.slides){
-       if(this.incidents[region(mark.station)]){mark.cleanPasses=0;continue;}
+       if(this.slideBins.has(Math.floor(mark.station/50))){mark.cleanPasses=0;continue;}
        mark.cleanPasses=(mark.cleanPasses??0)+1;
-       if(mark.cleanPasses>=3)mark.safeSpeed=Math.min(mark.speed,mark.safeSpeed+.25);
+       if(mark.cleanPasses>=2)mark.safeSpeed=Math.min(mark.speed,mark.safeSpeed+mark.speed*.02);
      }
+     this.memory.slides=this.memory.slides.filter(mark=>mark.safeSpeed<mark.speed);
      this.memory.laps.push({date:Date.now(),sectors:this.splits.map((t,i)=>t-(this.splits[i-1]??0))});
      this.memory.laps=this.memory.laps.slice(-60);
      this.memory.save();
@@ -664,5 +659,5 @@ export class Cruise {
  const suspension=this.dynamics.suspension;
  const front=suspension.frontDownforce;
  const tyres=Object.fromEntries(corners.map(k=>{const t=this.dynamics.tyres[k];return [k,{pressure:t.pressure,contact:t.contactPressure,wear:1000*Math.max(...t.wear),locked:t.locked}];}));
- return {platform:{wing:wingOpening(this.wingTravel),frontGap:suspension.frontGap,rearGap:suspension.rearGap},liveDelta:this.liveDelta(),report:this.timed||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:this.gearbox.energy/5e6},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.dynamics.suspension.loads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
+ return {platform:{wing:wingOpening(this.wingTravel),frontGap:suspension.frontGap,rearGap:suspension.rearGap},liveDelta:this.liveDelta(),report:this.timed||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:1},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.dynamics.suspension.loads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
 }

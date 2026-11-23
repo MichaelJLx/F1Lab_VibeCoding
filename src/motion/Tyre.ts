@@ -9,7 +9,7 @@ export class Tyre{
  step(dt:number,v:number,demand:number,capacity:number,load:number){
    const r=this.radius,inertia=1.45;
    // Implicit linear creep at low slip, saturated by the remaining friction ellipse.
-   capacity*=1-.08*Math.min(1,Math.abs(this.slip))-.06*this.wear[this.patch]/.009;
+   capacity*=1-.08*Math.min(1,Math.abs(this.slip));
    const stiffness=capacity*12/Math.max(2,Math.abs(v));
    const free=this.omega+dt*r*demand/inertia;
    const force=Math.max(-capacity,Math.min(capacity,stiffness*(free*r-v)/(1+dt*r*r*stiffness/inertia)));

@@ -15,20 +15,14 @@ export function plannedForce(speed:number){
 }
 export class Gearbox{
  // Estimated equivalent wheel-side split; electric output is part of the 660 kW curve.
- energy=5e6;electricKw=0;driveKw=0;
+ electricKw=0;driveKw=0;
  private combustionForce=0;
- account(dt:number,speed:number,force:number,rearForce:number){
-   const power=force*speed;
-   // Electric assist supplies wheel demand above the available combustion torque.
-   const assist=Math.max(0,force-this.combustionForce)*speed;
-   const recovered=Math.max(0,-rearForce*speed)*.9;
-   const electric=power>0 ? Math.min(assist,180000,this.energy/dt)
-     : -Math.min(recovered,300000,(5e6-this.energy)/dt);
-   this.energy=Math.max(0,Math.min(5e6,this.energy-electric*dt));
-   this.electricKw=electric/1000;this.driveKw=power/1000;
+ account(speed:number,force:number){
+   this.driveKw=force*speed/1000;
+   this.electricKw=Math.min(180,Math.max(0,force-this.combustionForce)*speed/1000);
  }
  index=0;rpm=5000;shift=0;throttle=0;brake=0;
- update(dt:number,speed:number,deploy=true){
+ update(dt:number,speed:number){
    this.shift=Math.max(0,this.shift-dt);
    if(!this.shift){
      const rpm=rpmAt(speed,this.index);
@@ -38,6 +32,6 @@ export class Gearbox{
    this.rpm=Math.round(Math.max(5000,rpmAt(speed,this.index)));
    const force=forceAt(speed,this.index)*(this.shift>0?.38:1);
    this.combustionForce=.74*force;
-   return this.combustionForce+(deploy?Math.min(.26*force,this.energy/(dt*Math.max(1,speed))):0);
+   return force;
  }
 }
