@@ -1,3 +1,4 @@
+import {pressureMap} from './PressureMap';
 import {createAirflow} from './Airflow';
 import {bindSuspensionLinks} from './SuspensionLinks';
 import {staticDrop,rootClearance} from '../motion/AeroPlatform';
@@ -46,6 +47,9 @@ export class Inspector {
  renderer:T.WebGLRenderer;controls:OrbitControls;free:FreeCamera;env:T.WebGLRenderTarget;resize:ResizeObserver;
  mode:'trackside'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
  private updateLinks?:()=>void;
+ private pressure?:ReturnType<typeof pressureMap>;
+ private pressureEnabled=false;
+ setPressure(on:boolean){if(!this.car)return;this.pressure??=pressureMap(this.car);this.pressureEnabled=on;this.pressure.set(on);}
  private flow?:ReturnType<typeof createAirflow>;
  setAirflow(enabled:boolean){
    if(enabled && !this.flow){
@@ -423,8 +427,9 @@ export class Inspector {
    const mesh=this.flow.mesh;
    mesh.position.copy(this.car.position);mesh.quaternion.copy(this.car.quaternion);mesh.scale.copy(this.car.scale);
    const speed=this.cruise.speed,beta=Math.atan2(this.cruise.dynamics.vy,Math.max(1,speed));
-   this.flow.update(this.cruise.status==='paused'?0:dt,speed,blend,beta,this.cruise.dynamics.suspension.frontGap,this.cruise.dynamics.suspension.rearGap);
+   this.flow.update(this.cruise.status==='paused'?0:dt,speed,blend,beta,this.cruise.dynamics.suspension.frontGap,this.cruise.dynamics.suspension.rearGap,this.cruise.dynamics.steer);
  }
+ if(this.pressureEnabled)this.pressure?.update(blend,this.cruise.dynamics.suspension.beta);
  setFlap(this.frontFlap,blend);setFlap(this.rearFlap,blend);
  (this.preview?.track??this.track).setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
  if(now-this.lastLabels<100)return;this.lastLabels=now;this.onCruise(this.cruise.snapshot());
@@ -461,5 +466,5 @@ export class Inspector {
    this.updateWheelLCD();renderer.render(this.scene,this.camera);
  }
  disposeObject(o:T.Object3D){const textures=new Set<T.Texture>();o.traverse(n=>{if(n instanceof T.Mesh||n instanceof T.Line||n instanceof T.Points){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material]){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}}});for(const t of textures)t.dispose();}
- dispose(){(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.pressure?.dispose();(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }

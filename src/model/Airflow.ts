@@ -1,10 +1,17 @@
+import {wingCp} from './WingPressure';
 import * as T from 'three';
 import {platformForces} from '../motion/AeroPlatform';
 
-const steps=84,ds=.10;
-const seeds:Array<[number,number]>=[];
+const steps=84;
+const seeds:Array<[number,number,number]>=[];
 for(const side of [-1,1])for(const [x,y] of [[.09,.43],[.24,.57],[.36,.69],[.52,.66],[.68,.57],[.80,.50],[.89,.38],[.98,.28],[1.06,.19],[.39,.054],[.21,.042],[.57,.095]]){
- seeds.push([side*x,y]);
+ seeds.push([side*x,y,3.85]);
+}
+// Local dye injection resolves the shear layers hidden from upstream tracers.
+for(const side of [-1,1]){
+ for(const [x,y,z] of [[.61,.37,.76],[.63,.30,.76],[.76,.13,.53],[.82,.09,.53],[.74,.38,1.27],[.64,.16,-1.75]]){
+   seeds.push([side*x,y,z]);
+ }
 }
 // Regularized doublets in ellipsoid coordinates approximate displacement around
 // wheels, nose and sidepods. Wing turning and diffuser flow use the force model.
@@ -31,7 +38,7 @@ export function createAirflow(){
  // Travel coordinate in free-stream metres: integral dz / (Uz / Uinf).
  const transit=new T.BufferAttribute(new Float32Array(count),1).setUsage(T.DynamicDrawUsage);
  geometry.setAttribute('transit',transit);
- const uniforms={advection:{value:0},exposure:{value:0}};
+ const uniforms={advection:{value:0},exposure:{value:0},signal:{value:0}};
  const material=new T.ShaderMaterial({uniforms,side:T.DoubleSide,transparent:true,depthWrite:false,
  vertexShader:`
  attribute vec3 direction,flow;
@@ -46,7 +53,7 @@ export function createAirflow(){
    eye.xyz+=axis/max(.001,length(axis))*flow.x*width*length(modelViewMatrix[0].xyz);
    gl_Position=projectionMatrix*eye;
  }`,fragmentShader:`
- uniform float advection,exposure;
+ uniform float advection,exposure,signal;
  varying float travel;
  varying vec3 trace;
  float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -68,13 +75,14 @@ export function createAirflow(){
    float edge=.21+.45*billow;
    float density=(1.-smoothstep(edge*.24,edge,radius))*smoothstep(.25,1.32,billow);
    float fade=smoothstep(0.,.09,trace.y)*(1.-smoothstep(.76,1.,trace.y));
-   gl_FragColor=vec4(mix(vec3(.64,.73,.74),vec3(.91,.88,.81),billow*.60),fade*density*(.32+.12*wake));
+   gl_FragColor=vec4(mix(vec3(.64,.73,.74),vec3(.91,.88,.81),billow*.60),signal*fade*density*(.32+.12*wake));
    #include <colorspace_fragment>
  }`});
  const mesh=new T.Mesh(geometry,material);mesh.name='Wind tunnel smoke';mesh.visible=false;mesh.frustumCulled=false;mesh.raycast=()=>{};
  let elapsed=Infinity;
  const velocity=new T.Vector3(),mid=new T.Vector3(),p=new T.Vector3();
- return {mesh,update(dt:number,speed:number,opening:number,beta:number,frontGap:number,rearGap:number){
+ return {mesh,update(dt:number,speed:number,opening:number,beta:number,frontGap:number,rearGap:number,steer:number){
+   uniforms.signal.value=T.MathUtils.smoothstep(speed,0,5);
    const distance=Math.max(0,speed)*dt;
    uniforms.advection.value+=distance;
    if(dt>0)uniforms.exposure.value=distance*.5;
@@ -84,6 +92,13 @@ export function createAirflow(){
    let axialRatio=1;
    // Wake deficit from drag momentum, using an expanding Gaussian pair.
    const dragArea=speed>.01?aero.drag/(.5*1.225*speed*speed):0;
+   // Bernoulli edge speed derived from tunnel pressure taps; resample once per field update.
+   const edge=Array.from({length:65},(_,i)=>Math.sqrt(Math.max(.015,1-wingCp(i/64,true,opening))));
+   function wingSpeed(chord:number,height:number){
+     if(chord<0 || chord>1 || Math.abs(height)>.27)return 0;
+     const t=chord*64,i=Math.min(63,Math.floor(t));
+     return (edge[i]+(edge[i+1]-edge[i])*(t-i)-1)*Math.exp(-Math.abs(height)/.09)*Math.min(1,chord*40,(1-chord)*25);
+   }
    function field(point:T.Vector3){
      const {x,y,z}=point;
      let vx=-incident,vy=0,forward=1;
@@ -96,9 +111,41 @@ export function createAirflow(){
      const span=Math.exp(-Math.pow(Math.abs(x)/1.03,6));
      const wing=(station:number,height:number,reach:number)=>Math.exp(-Math.pow((z-station)/reach,2)-Math.pow((y-height)/.38,2))*span;
      vy+=.30*aero.frontWing*wing(2.24,.19,.47)+.54*aero.rearWing*wing(-2.54,.86,.91);
+     if(y<.19)forward+=span*wingSpeed((2.68-z)/.60,y-.19);
+     if(y<.86)forward+=span*wingSpeed((-1.92-z)/.68,y-.86);
      const floor=Math.exp(-Math.pow((y-.06)/.12,2)-Math.pow(x/.66,4));
      forward+=floor*.35*(aero.frontFloor+aero.rearFloor)*Math.exp(-Math.pow((z+.15)/1.6,4));
      vy+=floor*.24*aero.rearFloor*Math.exp(-Math.pow((z+1.85)/.65,2));
+     // Finite-core streamwise vortices. An opposite mirror vortex below the
+     // road cancels normal velocity at the ground. Positions are model estimates.
+     const side=x>=0?1:-1;
+     const wheelDistance=1.69-z;
+     const wheelCentre=side*.77-wheelDistance*(incident+.35*Math.sin(steer));
+     let wheelLoss=0;
+     if(wheelDistance>.32){
+       const t=wheelDistance-.32;
+       const spread=.17+.09*t;
+       wheelLoss=.47*(1-Math.exp(-t/.09))*Math.exp(-t/1.65
+         -.5*((x-wheelCentre)/spread)**2-.5*((y-.37)/(.24+.045*t))**2);
+       forward-=wheelLoss;
+     }
+     function rollUp(start:number,offset:number,height:number,radius:number,length:number,circulation:number){
+       const age=start-z;
+       if(age<=0)return;
+       const dx=x-(side*offset-incident*age),dy=y-height,imageY=y+height;
+       const core=radius+.038*age;
+       const strength=side*circulation*(-Math.expm1(-age/.15))*Math.exp(-age/length);
+       const real=strength/(core*core+dx*dx+dy*dy),image=strength/(core*core+dx*dx+imageY*imageY);
+       vx+=-real*dy+image*imageY;vy+=(real-image)*dx;
+     }
+     // Local pressure loading drives circulation. Wheel-wake velocity deficit
+     // reduces the head available at the inlet. Yaw redistributes incidence.
+     const incidence=T.MathUtils.clamp(1-side*2*incident,.55,1.45);
+     const lipLoad=aero.frontFloor*(1-wheelLoss)**2*incidence;
+     rollUp(.78,.62,.33,.056,1.35,.041*lipLoad);
+     rollUp(.55,.76,Math.max(.05,frontGap+.038),.042,2.1,-.032*aero.frontFloor*incidence);
+     rollUp(2.32,.88,.20,.060,1.1,.032*aero.frontWing);
+     rollUp(-1.76,.57,Math.max(.11,rearGap+.14),.070,1.35,-.042*aero.rearFloor);
      // Counter-rotating trailing vortices: circulation falls with wing load,
      // the finite core spreads downstream and the wake is convected by sideslip.
      if(z<-2.12){
@@ -116,13 +163,14 @@ export function createAirflow(){
      return velocity.set(vx/axialRatio,vy/axialRatio,-1);
    }
    let index=0;
-   for(const [x,y] of seeds){
-     p.set(x,y,3.85);let upstreamMetres=0;
+   for(const [x,y,inlet] of seeds){
+     const step=(inlet+4.55)/steps;
+     p.set(x,y,inlet);let upstreamMetres=0;
      for(let i=0;i<=steps;i++){
        field(p);
        for(let j=0;j<2;j++){transit.setX(index,upstreamMetres);pos.setXYZ(index,p.x,p.y,p.z);dir.setXYZ(index++,velocity.x,velocity.y,-1);}
-       mid.copy(p).addScaledVector(velocity,ds*.5);p.addScaledVector(field(mid),ds);
-       upstreamMetres+=ds/axialRatio;
+       mid.copy(p).addScaledVector(velocity,step*.5);p.addScaledVector(field(mid),step);
+       upstreamMetres+=step/axialRatio;
        p.y=Math.max(.014,p.y);
      }
    }

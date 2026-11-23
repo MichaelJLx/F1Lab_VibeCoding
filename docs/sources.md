@@ -34,3 +34,11 @@ Eau Rouge 至 Raidillon 的局部高程使用佩雷兹 2024 年比利时站第 4
 ### 空力平台与悬架几何
 
 底板前后测点和四轮连杆顶点取自当前 RB22 社区模型，可用 `node scripts/model/build-suspension-rig.mjs` 从项目 GLB 重建。静态车身相对轮心降低 3 mm。前后翼有效面积、底板离地效率曲线、偏航灵敏度与防倾杆刚度均为模拟估值。遥测中的离地间隙、下压力和轮载为模型输出。
+
+### 翼面压力与烟流速度参考
+
+采用 Ladson、Hill 与 Johnson 的 NASA TM 100526 自由转捩风洞测点，M=0.3、Re=600 万，选用迎角 0.0169° 与 10.0254°。以无量纲弦向坐标插值双面 Cp，将吸力面映射到倒置翼下方，按翼面开度混合两条曲线。附着流边缘速度用 U/U∞ ≈ √(1−Cp) 估算。模型使用整翼参考弦长，翼型、多段翼干扰、地面效应与分离尾流需要单独测量。车身与车轮配色为表面迎风方向估计。色标为无量纲压力系数。[验证工况](https://tmbwg.github.io/turbmodels/naca0012_val.html) · [原始压力测点](https://tmbwg.github.io/turbmodels/NACA0012_validation/CP_Ladson.dat)
+
+交叉检查用 Gregory 与 O’Reilly 的 10° 上表面曲线（Re=288 万），在 Ladson 测点覆盖范围内逐点比较。22 个对照点平均绝对差为 0.426 Cp；该差值包含试验条件和前缘测点密度差异。[对照数据](https://tmbwg.github.io/turbmodels/NACA0012_validation/CP_Gregory_expdata.dat)
+
+侧箱下切口、底板侧缘、前翼翼尖和扩散器边缘使用有限涡核近似。涡源位置、衰减长度与环量系数为展示估值，使用局部翼载、离地间隙及侧滑调制。前轮尾流方向随转向与侧滑移动，减速区削弱侧箱前缘的有效来流。可视化中的烟来自虚拟示踪剂。机制参考 [Formula 1 对侧箱与底板前缘的技术分析](https://www.formula1.com/en/latest/article/tech-analysis-why-audis-new-look-bodywork-in-bahrain-got-people-talking.6zWbwADblkDxwOpH0nHPYz) 和 [Knowles 等的前轮近尾流实验](https://doi.org/10.1177/0954407013491903)。
