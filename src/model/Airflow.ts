@@ -73,19 +73,23 @@ export function createAirflow(){
    float crosswind=(advectedNoise(vec2(uv.x,trace.z),.64)-.5)*(.24+.45*wake);
    float radius=abs(trace.x-crosswind);
    float edge=.21+.45*billow;
-   float density=(1.-smoothstep(edge*.24,edge,radius))*smoothstep(.25,1.32,billow);
+   // Keep the injected smoke column continuous; noise modulates its fringes.
+   float column=exp(-5.5*radius*radius)*(1.-smoothstep(.72,1.,radius));
+   float fringe=(1.-smoothstep(edge*.24,edge,radius))*smoothstep(.25,1.32,billow);
+   float density=.68*column+.32*fringe;
    float fade=smoothstep(0.,.09,trace.y)*(1.-smoothstep(.76,1.,trace.y));
-   gl_FragColor=vec4(mix(vec3(.64,.73,.74),vec3(.91,.88,.81),billow*.60),signal*fade*density*(.32+.12*wake));
+   gl_FragColor=vec4(mix(vec3(.64,.73,.74),vec3(.91,.88,.81),billow*.60),signal*fade*density*(.48+.10*wake));
    #include <colorspace_fragment>
  }`});
  const mesh=new T.Mesh(geometry,material);mesh.name='Wind tunnel smoke';mesh.visible=false;mesh.frustumCulled=false;mesh.raycast=()=>{};
  let elapsed=Infinity;
  const velocity=new T.Vector3(),mid=new T.Vector3(),p=new T.Vector3();
  return {mesh,update(dt:number,speed:number,opening:number,beta:number,frontGap:number,rearGap:number,steer:number){
-   uniforms.signal.value=T.MathUtils.smoothstep(speed,0,5);
+   uniforms.signal.value=T.MathUtils.smoothstep(speed,0,1.5);
    const distance=Math.max(0,speed)*dt;
    uniforms.advection.value+=distance;
-   if(dt>0)uniforms.exposure.value=distance*.5;
+   // Fixed virtual shutter keeps smoke contrast independent of rendering FPS.
+   uniforms.exposure.value=Math.max(0,speed)/120;
    elapsed+=dt;if(elapsed<1/15)return;elapsed=0;
    const aero=platformForces(speed,opening,frontGap,rearGap,beta);
    const incident=Math.tan(T.MathUtils.clamp(beta,-.22,.22));

@@ -48,6 +48,7 @@ export class Inspector {
  mode:'trackside'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
  private updateLinks?:()=>void;
  private pressure?:ReturnType<typeof pressureMap>;
+ pressureCoefficient=false;
  private pressureEnabled=false;
  setPressure(on:boolean){if(!this.car)return;this.pressure??=pressureMap(this.car);this.pressureEnabled=on;this.pressure.set(on);}
  private flow?:ReturnType<typeof createAirflow>;
@@ -429,7 +430,10 @@ export class Inspector {
    const speed=this.cruise.speed,beta=Math.atan2(this.cruise.dynamics.vy,Math.max(1,speed));
    this.flow.update(this.cruise.status==='paused'?0:dt,speed,blend,beta,this.cruise.dynamics.suspension.frontGap,this.cruise.dynamics.suspension.rearGap,this.cruise.dynamics.steer);
  }
- if(this.pressureEnabled)this.pressure?.update(blend,this.cruise.dynamics.suspension.beta);
+ if(this.pressureEnabled){
+   const platform=this.cruise.dynamics.suspension;
+   this.pressure?.update(blend,platform.beta,this.cruise.speed,platform.frontGap,platform.rearGap,this.pressureCoefficient);
+ }
  setFlap(this.frontFlap,blend);setFlap(this.rearFlap,blend);
  (this.preview?.track??this.track).setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
  if(now-this.lastLabels<100)return;this.lastLabels=now;this.onCruise(this.cruise.snapshot());
