@@ -1,32 +1,20 @@
-import {activeAero} from './ActiveAero';
+import {nominalGap,platformForces} from './AeroPlatform';
 /** Four contact patches and sprung-body heave/roll/pitch. SI, +X left, +Z forward.
  * Parameters are explicit engineering estimates, not team telemetry calibration.
  * Wheel displacement is relative to the local road tangent. */
-export const suspensionParameters={cgHeight:.30,rollInertia:210,pitchInertia:1100,frontTrack:1.60,rearTrack:1.55,frontSpring:154000,rearSpring:174000,compressionRatio:.78,reboundRatio:.94,frontAntiRoll:22000,rearAntiRoll:17000,travel:.038,bumpRate:650000,airDensity:1.225,liftArea:5.0,dragArea:1.2,aeroFront:.44,brakeFront:.57,loadExponent:.90};
+export const suspensionParameters={cgHeight:.30,rollInertia:210,pitchInertia:1100,frontTrack:1.60,rearTrack:1.55,frontSpring:154000,rearSpring:174000,compressionRatio:.78,reboundRatio:.94,frontAntiRoll:22000,rearAntiRoll:17000,travel:.038,bumpRate:650000,brakeFront:.57,loadExponent:.90};
 export type Corner='FL'|'FR'|'RL'|'RR';
 export const corners:Corner[]=['FL','FR','RL','RR'];
 export function tyreCapacity(load:number,reference:number,mu:number){
  return mu*reference*Math.pow(Math.max(0,load)/reference,suspensionParameters.loadExponent);
 }
 export function aeroForces(speed:number,opening:number,heave=0,pitch=0){
- const p=suspensionParameters,q=.5*p.airDensity*speed*speed;
- // Estimated floor sensitivity at each axle. Positive pitch lowers the nose.
- const efficiency=(clearanceChange:number)=>{
-   const compression=Math.max(-.035,Math.min(.045,-clearanceChange));
-   const close=Math.max(0,compression-.026);
-   return 1+.95*compression-140*close*close;
- };
- const balance=p.aeroFront+activeAero.frontBalanceChange*opening;
- const nominal=q*p.liftArea*(1-activeAero.downforceReduction*opening);
- const frontDownforce=nominal*balance*efficiency(heave-1.75*pitch);
- const rearDownforce=nominal*(1-balance)*efficiency(heave+1.636*pitch);
- const downforce=frontDownforce+rearDownforce;
- // Wing-induced drag varies with lift squared; the remaining drag is parasitic.
- const liftRatio=nominal>0?downforce/nominal:1;
- const drag=q*p.dragArea*(1-activeAero.dragReduction*opening)*(.8+.2*liftRatio*liftRatio);
- return {frontDownforce,downforce,drag};
+ return platformForces(speed,opening,nominalGap.front+heave-1.25*pitch,nominalGap.rear+heave+1.25*pitch);
 }
 export class Suspension {
+ frontRoad=0;rearRoad=0;beta=0;
+ get frontGap(){return nominalGap.front+this.heave-1.25*this.pitch-this.frontRoad;}
+ get rearGap(){return nominalGap.rear+this.heave+1.25*this.pitch-this.rearRoad;}
  roll=0;pitch=0;heave=0;rollRate=0;pitchRate=0;heaveRate=0;frontDownforce=0;downforce=0;drag=0;
  surfaceGrip:Record<Corner,number>={FL:1,FR:1,RL:1,RR:1};
  ground:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
@@ -36,15 +24,19 @@ export class Suspension {
  loads:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  travel:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  constructor(public mass:number,public a:number,public b:number){this.reset();}
- reset(){this.roll=this.pitch=this.heave=this.rollRate=this.pitchRate=this.heaveRate=this.frontDownforce=this.downforce=this.drag=0;for(const k of corners){this.surfaceGrip[k]=1;this.loads[k]=this.mass*9.81*(k[0]==='F'?this.b:this.a)/(this.a+this.b)/2;this.hub[k]=this.hubRate[k]=this.travel[k]=this.ground[k]=this.groundRate[k]=0;}}
+ reset(){this.frontRoad=this.rearRoad=this.beta=0;this.roll=this.pitch=this.heave=this.rollRate=this.pitchRate=this.heaveRate=this.frontDownforce=this.downforce=this.drag=0;for(const k of corners){this.surfaceGrip[k]=1;this.loads[k]=this.mass*9.81*(k[0]==='F'?this.b:this.a)/(this.a+this.b)/2;this.hub[k]=this.hubRate[k]=this.travel[k]=this.ground[k]=this.groundRate[k]=0;}}
  step(dt:number,speed:number,ax:number,ay:number,slope:number,verticalAcceleration=0,opening=0){
  const steps=Math.ceil(dt*1200);
  for(let i=0;i<steps;i++)this.integrate(dt/steps,speed,ax,ay,slope,verticalAcceleration,opening);
  }
  private integrate(dt:number,speed:number,ax:number,ay:number,slope:number,verticalAcceleration:number,opening:number){
  const p=suspensionParameters,L=this.a+this.b,g=9.81*Math.cos(slope);
- const aero=aeroForces(speed,opening,this.heave,this.pitch);this.downforce=aero.downforce;this.drag=aero.drag;
+ const aero=platformForces(speed,opening,this.frontGap,this.rearGap,this.beta);this.downforce=aero.downforce;this.drag=aero.drag;
  this.frontDownforce=aero.frontDownforce;
+ // Torsion resists differential wheel travel. Equal bump at both wheels
+ // produces no bar force; left and right reactions always cancel in heave.
+ const twistFront=(this.hub.FL-this.hub.FR)/p.frontTrack-this.roll;
+ const twistRear=(this.hub.RL-this.hub.RR)/p.rearTrack-this.roll;
  let vertical=0,rollMoment=0,pitchMoment=0;
  for(const key of corners){
  const front=key[0]==='F',x=(key[1]==='L'?1:-1)*(front?p.frontTrack:p.rearTrack)/2,z=front?this.a:-this.b;
@@ -57,7 +49,7 @@ export class Suspension {
  // Digressive damping: retain body control at low shaft speed while letting
  // a fast kerb strike move the wheel without an equally sharp body impulse.
  const dampingForce=(velocity:number)=>damper*velocity*(.32+.68/(1+Math.abs(velocity)/.22));
- const extra=spring*compression+dampingForce(rate)+bump-arb*this.roll/(2*x);
+ const extra=spring*compression+dampingForce(rate)+bump+arb*(front?twistFront:twistRear)/(2*x);
  const base=this.mass*g*(front?this.b:this.a)/L/2;
  // Incremental tyre and suspension forces around the static equilibrium.
  const tyreForce=Math.max(-base,850000*(this.ground[key]-this.hub[key])+2400*(this.groundRate[key]-this.hubRate[key]));

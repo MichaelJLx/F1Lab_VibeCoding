@@ -15,7 +15,7 @@ export class LateralDynamics {
  steerVelocity=0;steer=0;vy=0;yawRate=0;ay=0;offset=0;headingError=0;acceleration=0;
  reset(){this.steeringLoss=0;this.rearDriveReserve=0;this.suspension.reset();this.longitudinalForce=0;for(const k of corners){this.wheelFy[k]=0;this.wheelFx[k]=0;this.tyres[k]=new Tyre(rig.wheels[k].radius);}this.steerVelocity=this.steer=this.vy=this.yawRate=this.ay=this.offset=this.headingError=this.acceleration=0;}
  longitudinalStep(h:number,v:number,request:number,slope:number,verticalAcceleration:number,opening:number){
- const p=lateralParameters;this.suspension.step(h,v,this.acceleration,this.ay,slope,verticalAcceleration,opening);
+ const p=lateralParameters;this.suspension.beta=Math.atan2(this.vy,Math.max(1,v));this.suspension.step(h,v,this.acceleration,this.ay,slope,verticalAcceleration,opening);
  const resistance=this.suspension.drag+p.mass*9.81*Math.sin(slope);
 
  for(const k of corners){

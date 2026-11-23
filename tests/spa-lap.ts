@@ -8,6 +8,7 @@ import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
 import {turnStations} from '../src/tracks/SpaMarkers';
 import {RacingLine} from '../src/optimizer/RacingLine';
 import {Tyre} from '../src/motion/Tyre';
+import {nominalGap,platformForces} from '../src/motion/AeroPlatform';
 import {Suspension} from '../src/motion/Suspension';
 import {DriverMemory} from '../src/motion/DriverMemory';
 import {Cruise} from '../src/motion/Cruise';
@@ -26,6 +27,16 @@ const kerb=new Suspension(800,1.75,1.636);
 kerb.ground.FL=.035;
 kerb.step(1/240,0,0,0,0);
 assert.ok(kerb.hub.FL>0 && kerb.hub.FL<kerb.ground.FL && kerb.hub.FL>kerb.hub.FR);
+
+const neutral=platformForces(65,0,nominalGap.front,nominalGap.rear);
+const sliding=platformForces(65,0,nominalGap.front,nominalGap.rear,.08);
+assert.ok(sliding.downforce<neutral.downforce && sliding.rearDownforce/neutral.rearDownforce<sliding.frontDownforce/neutral.frontDownforce);
+const bottomed=platformForces(65,0,0,0);
+assert.ok(bottomed.downforce<neutral.downforce);
+const symmetric=new Suspension(800,1.75,1.636);
+symmetric.ground.FL=symmetric.ground.FR=.02;
+for(let i=0;i<30;i++)symmetric.step(1/240,0,0,0,0);
+assert.ok(Math.abs(symmetric.roll)<1e-5 && symmetric.heave>0);
 
 const stored=new Map<string,string>();
 Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{

@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {floorSamples} from '../motion/AeroPlatform';
 import type {Cruise} from '../motion/Cruise';
 
 const slots=160;
@@ -33,22 +34,7 @@ export class SkidSparks {
    glow.frustumCulled=false;this.trails.add(glow);
    this.trails.scale.setScalar(scale);this.trails.frustumCulled=false;this.trails.visible=false;
  }
- private blocks:T.Vector3[]=[];
- bindFloor(chassis:T.Group){
-   this.blocks=[];
-   const floor=chassis.getObjectByName('floor');
-   if(!floor)return;
-   chassis.updateWorldMatrix(true,true);
-   const up=new T.Vector3(0,1,0).transformDirection(chassis.matrixWorld);
-   const ray=new T.Raycaster();
-   for(const z of [-1.25,-.6,0,.6,1.25]){
-     for(const x of [-.09,.09]){
-       ray.set(chassis.localToWorld(new T.Vector3(x,-1,z)),up);
-       const hit=ray.intersectObject(floor,true)[0];
-       if(hit)this.blocks.push(chassis.worldToLocal(hit.point));
-     }
-   }
- }
+ private blocks=floorSamples.map(([x,y,z])=>new T.Vector3(x,y-.30,z));
  update(dt:number,cruise:Cruise,chassis:T.Group,scale:number,preview:boolean){
    if(preview || cruise.status==='idle' || cruise.status==='complete'){
      if(this.trails.visible)this.particles.forEach(p=>p.life=0);

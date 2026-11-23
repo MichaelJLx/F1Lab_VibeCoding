@@ -22,6 +22,22 @@ export class PitLane {
      this.centers.push(new T.Vector3(raw.dot(track.startLeft),track.point(s).y,raw.dot(track.startForward)));
    }
 
+   // Continue from the surveyed exit tangent into the near edge of the main straight.
+   // Keep the paved connector separate from the subsequent move to the racing line.
+   const join=398,end=490,start=this.point(join);
+   const dir=this.point(join).sub(this.point(join-5)).normalize();
+   const centre=track.point(end),axis=track.point(end+1).sub(track.point(end-1)).normalize();
+   const left=new T.Vector3(axis.z,0,-axis.x).normalize();
+   const side=Math.sign(start.clone().sub(track.point(join)).dot(left));
+   const dest=centre.addScaledVector(left,side*(track.width(end,side)-halfWidth-.6));
+   const span=start.distanceTo(dest);
+   for(let s=join+1;s<=end;s++){
+     const t=(s-join)/(end-join),u=1-t;
+     const point=this.centers[s+420],height=point.y;
+     point.copy(start).multiplyScalar(u*u*(1+2*t)).addScaledVector(dest,t*t*(3-2*t))
+       .addScaledVector(dir,span*t*u*u).addScaledVector(axis,-span*t*t*u);
+     point.y=height;
+   }
    // The pit shortcut covers less ground than T1. Interpolate its grade
    // by its own horizontal arc length and match the slopes at both joins.
    const first=420+171,last=420+316,distances=[0];
@@ -44,11 +60,20 @@ export class PitLane {
    const t=T.MathUtils.clamp(s+420,0,this.centers.length-1),i=Math.floor(t);
    return this.centers[i].clone().lerp(this.centers[Math.min(i+1,this.centers.length-1)],t-i);
  }
+ exitLine(s:number,race:T.Vector3){
+   if(s<=490)return this.point(s);
+   const t=T.MathUtils.clamp((s-490)/150,0,1);
+   const offset=this.point(490).sub(this.track.point(490));
+   const edge=this.track.point(s).add(offset);
+   return edge.lerp(race,t*t*t*(10-15*t+6*t*t));
+ }
  blend(s:number){
    return T.MathUtils.smoothstep(s,-378,-353)*(1-T.MathUtils.smoothstep(s,376,485));
  }
- addFace(a:T.Vector3,b:T.Vector3,c:T.Vector3){
+ private kerbFaces=new WeakSet<T.Triangle>();
+ addFace(a:T.Vector3,b:T.Vector3,c:T.Vector3,kerb=false){
    const triangle=new T.Triangle(a,b,c);
+   if(kerb)this.kerbFaces.add(triangle);
    const bounds=new T.Box3().setFromPoints([a,b,c]);
    for(let x=Math.floor(bounds.min.x/8);x<=Math.floor(bounds.max.x/8);x++)
      for(let z=Math.floor(bounds.min.z/8);z<=Math.floor(bounds.max.z/8);z++){
@@ -56,10 +81,12 @@ export class PitLane {
        if(cell)cell.push(triangle);else this.cells.set(key,[triangle]);
      }
  }
- heightAt(point:T.Vector3){
+ heightAt(point:T.Vector3,includeKerbs=true){
    const faces=this.cells.get(Math.floor(point.x/8)+','+Math.floor(point.z/8));
    if(!faces)return undefined;
-   for(const {a,b,c} of faces){
+   for(const face of faces){
+     if(!includeKerbs && this.kerbFaces.has(face))continue;
+     const {a,b,c}=face;
      const x=point.x-a.x,z=point.z-a.z,bx=b.x-a.x,bz=b.z-a.z,cx=c.x-a.x,cz=c.z-a.z;
      const det=bx*cz-bz*cx;
      if(Math.abs(det)<1e-8)continue;

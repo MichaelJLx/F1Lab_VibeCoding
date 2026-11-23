@@ -106,7 +106,7 @@ export class SpaTrack {
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
  if(this.pit && signage){
    const lane=this.pit.surface(rows,this.road.material as T.Material);
-   for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c);
+   for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c,true);
    this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());
  }
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);

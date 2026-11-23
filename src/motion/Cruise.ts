@@ -1,5 +1,6 @@
+import {nominalGap,platformForces} from './AeroPlatform';
+import {advanceWing,wingOpening,straightModeZone} from './ActiveAero';
 import {DriverMemory,type SlideMark} from './DriverMemory';
-import {activeAero,straightModeZone} from './ActiveAero';
 import fastLine from '../tracks/spa-fast-line.json';
 import flying from '../tracks/spa-flying-speed.json';
 import {Gearbox,plannedForce} from './Gearbox';
@@ -20,7 +21,7 @@ export const reviewSections=[
  {name:'Pouhon · T10–T11',start:3470,end:3900},
  {name:'Bus Stop · T18–T19',start:6380,end:6860}
 ];
-export type ReviewFrame={s:number,t:number,position:T.Vector3,rotation:T.Quaternion,rack:number,curve:number,yaw:number,rear:number,speed:number,throttle:number,brake:number,rpm:number,gear:number,roll:number,pitch:number,heave:number};
+export type ReviewFrame={s:number,t:number,position:T.Vector3,rotation:T.Quaternion,rack:number,curve:number,yaw:number,rear:number,speed:number,throttle:number,brake:number,rpm:number,gear:number,roll:number,pitch:number,heave:number,hubs:Record<Corner,number>};
 export type CornerReport={i:number,delta?:number,exitDelta?:number,pickupDelta?:number,previousSlide:boolean,limited:boolean};
 export type LapTiming={lap:number,total?:number,regions?:RegionResult[],sectors:{ms:number,color:'purple'|'green'|'yellow'}[]};
 function sectorColor(ms:number,personal:number,session:number){
@@ -28,14 +29,13 @@ function sectorColor(ms:number,personal:number,session:number){
  if(ms<personal)return 'green' as const;
  return 'yellow' as const;
 }
-export type CruiseSnapshot={liveDelta?:number,report?:CornerReport,power?:{electric:number,wheels:number,energy:number},aero?:{front:number,rear:number,drag:number},tyres?:Record<string,{pressure:number,contact:number,wear:number,locked:boolean}>,station?:number,gear?:number,rpm?:number,throttle?:number,brake?:number,finishHold?:boolean,phase?:"out"|"timed"|"in",status:CruiseStatus,speed:number,progress:number,elapsed:number,distance:number,steer?:number,lateralG?:number,slip?:number,roll?:number,pitch?:number,heave?:number,lap?:number,lastLap?:number,bestLap?:number,timingRows?:LapTiming[],splits?:number[],aeroZone?:number,loads?:Record<string,number>};
+export type CruiseSnapshot={liveDelta?:number,report?:CornerReport,power?:{electric:number,wheels:number,energy:number},platform?:{wing:number,frontGap:number,rearGap:number},aero?:{front:number,rear:number,drag:number},tyres?:Record<string,{pressure:number,contact:number,wear:number,locked:boolean}>,station?:number,gear?:number,rpm?:number,throttle?:number,brake?:number,finishHold?:boolean,phase?:"out"|"timed"|"in",status:CruiseStatus,speed:number,progress:number,elapsed:number,distance:number,steer?:number,lateralG?:number,slip?:number,roll?:number,pitch?:number,heave?:number,lap?:number,lastLap?:number,bestLap?:number,timingRows?:LapTiming[],splits?:number[],aeroZone?:number,loads?:Record<string,number>};
 // Split linked corners halfway between their mapped apexes. Each window includes entry and exit.
 const ends=turnStations.map((s,i)=>(s+(turnStations[i+1]??Infinity))/2);
 const region=(s:number)=>ends.findIndex(end=>s<end);
 const blank=()=>turnStations.map(()=>0);
-const drag=.5*suspensionParameters.airDensity*suspensionParameters.dragArea;
 const wheelPower=660000; // Representative peak wheel power, W (estimate).
-const topSpeed=Math.cbrt(wheelPower/(drag*(1-activeAero.dragReduction)));
+const topSpeed=Math.cbrt(wheelPower/aeroForces(1,1).drag);
 // Registered 2024 lap, m/s. Use pace to identify the spatial scale of a bend.
 function referenceSpeed(station:number){
  const samples=flying.points;
@@ -314,17 +314,27 @@ export class Cruise {
  const speeds=this.speedPlan,curvatures:number[]=[];
  const mass=lateralParameters.mass;
  // Estimated lateral acceleration envelope (m/s²), shared by every corner.
- const grip=(v:number,opening:number,vertical:number)=>{
-   const staticLoad=mass*9.81/4,aero=aeroForces(v,opening);
-   // Keep a larger reserve in hairpins and as high-speed aero load builds.
+ const frontShare=lateralParameters.rearArm/(lateralParameters.frontArm+lateralParameters.rearArm);
+ const wheelbase=lateralParameters.frontArm+lateralParameters.rearArm;
+ const envelope=(v:number,opening:number,vertical:number,ax=0)=>{
+   const normal=mass*(9.81+T.MathUtils.clamp(v*v*vertical,-7,10));
+   const transfer=mass*ax*suspensionParameters.cgHeight/wheelbase;
+   const baseline=aeroForces(v,opening);
+   const deflection=(force:number,spring:number)=>T.MathUtils.clamp(force/(2*spring),-.038,.038);
+   const aero=platformForces(v,opening,
+     nominalGap.front-deflection(baseline.frontDownforce-transfer+(normal-mass*9.81)*frontShare,suspensionParameters.frontSpring),
+     nominalGap.rear-deflection(baseline.rearDownforce+transfer+(normal-mass*9.81)*(1-frontShare),suspensionParameters.rearSpring));
    const midSpeed=T.MathUtils.smoothstep(v,29,45)*(1-T.MathUtils.smoothstep(v,58,75));
-   const margin=this.timed ? .84+.065*T.MathUtils.smoothstep(v,22,60)+.020*midSpeed : .84;
-   // The valley adds normal load; crests take it away. Use the same tyre load law as the suspension.
-   const roadLoad=mass*T.MathUtils.clamp(v*v*vertical,-7,10)/4;
-   const normal=staticLoad+aero.downforce/4+roadLoad;
-   const lateral=4*tyreCapacity(normal,staticLoad,lateralParameters.grip)*margin/mass;
-   return this.timed?lateral:Math.min(52,16+.0047*v*v+roadLoad*4/mass,lateral);
+   const margin=this.timed?.84+.065*T.MathUtils.smoothstep(v,22,60)+.020*midSpeed:.84;
+   const axle=(share:number,load:number)=>2*tyreCapacity(load/2,mass*9.81*share/2,lateralParameters.grip)*margin/mass;
+   const front=axle(frontShare,normal*frontShare-transfer+aero.frontDownforce);
+   const rear=axle(1-frontShare,normal*(1-frontShare)+transfer+aero.rearDownforce);
+   let lateral=Math.min(front/frontShare,rear/(1-frontShare));
+   if(!this.timed)lateral=Math.min(lateral,16+.0047*v*v+normal/mass-9.81);
+   return {front,rear,lateral,drag:aero.drag};
  };
+ const remaining=(capacity:number,lateral:number)=>Math.sqrt(Math.max(0,capacity**2-lateral**2));
+ let travel=this.routeAeroZone(spaData.grid.s-1)?1:0;
  const openings:number[]=[];
  for(let i=0;i<n;i++){
    const d=i*this.planStep;
@@ -338,11 +348,12 @@ export class Cruise {
    const span=T.MathUtils.clamp(1/Math.sqrt(Math.max(.001,local)),5,18);
    const k=Math.abs(this.curvature(d,span));
    curvatures[i]=k;this.lateralCurve[i]=k;
-   openings[i]=this.routeAeroZone(spaData.grid.s+d)?1:0;
+   travel=advanceWing(travel,!!this.routeAeroZone(spaData.grid.s+d),this.pathLengths[i]/Math.max(5,referenceSpeed(this.track.wrap(spaData.grid.s+d))));
+   openings[i]=wingOpening(travel);
    let lo=0,hi=topSpeed;
    for(let j=0;j<12;j++){
      const v=(hi+lo)/2;
-     const capacity=grip(v,openings[i],this.verticalCurve[i]);
+     const capacity=envelope(v,openings[i],this.verticalCurve[i]).lateral;
      if(k*v*v<=capacity)lo=v;else hi=v;
    }
    const station=this.track.wrap(spaData.grid.s+d);
@@ -361,22 +372,34 @@ export class Cruise {
  }
  // Two sweeps carry acceleration and braking constraints across the timing line.
  for(let pass=0;pass<2;pass++){
+   if(pass>0){
+     let previous=this.routeAeroZone(spaData.grid.s-this.planStep),enabled=!!previous;
+     travel=enabled?1:0;
+     for(let i=0;i<n;i++){
+       const zone=this.routeAeroZone(spaData.grid.s+i*this.planStep);
+       if(zone!==previous)enabled=!!zone;
+       if((speeds[(i+1)%n]**2-speeds[i]**2)/(2*this.pathLengths[i])<-.5)enabled=false;
+       travel=advanceWing(travel,enabled,this.pathLengths[i]/Math.max(3,speeds[i]));
+       openings[i]=wingOpening(travel);previous=zone;
+     }
+   }
    speeds[n]=this.lastLap?0:this.lap===1?topSpeed:speeds[0];
    for(let i=n-1;i>=0;i--){
-     const v=speeds[i+1],capacity=grip(v,openings[i],this.verticalCurve[i]);
-     const available=Math.sqrt(Math.max(0,capacity**2-(curvatures[i]*v*v)**2));
+     const v=speeds[i+1],ay=curvatures[i]*v*v;
+     const capacity=envelope(v,openings[i],this.verticalCurve[i],-Math.min(30,12+.0029*v*v));
+     const available=Math.min(remaining(capacity.front,ay*frontShare)/.57,remaining(capacity.rear,ay*(1-frontShare))/.43);
      const pit=this.pitStation(spaData.grid.s+i*this.planStep);
      const attack=this.timed ? 1-T.MathUtils.smoothstep(curvatures[i]*v*v,2,10) : 0;
      const brake=Math.min(pit>=-300 && pit<=325 ? 4 : 12+3*attack+.0029*v*v,
-       (.80+.08*attack)*available+aeroForces(v,openings[i]).drag/mass);
+       (.80+.08*attack)*available+capacity.drag/mass);
      speeds[i]=Math.min(speeds[i],Math.sqrt(v*v+2*brake*this.pathLengths[i]));
    }
    if(pass===0)this.brakingLimit=speeds.slice();
    if(this.lap===1)speeds[0]=0;
    for(let i=0;i<n;i++){
-     const v=speeds[i],capacity=grip(v,openings[i],this.verticalCurve[i]);
-     const traction=.55*Math.sqrt(Math.max(0,capacity**2-(curvatures[i]*v*v)**2));
-     speeds[i+1]=Math.min(speeds[i+1],Math.sqrt(v*v+2*Math.min(traction,driveAcceleration(v,openings[i]))*this.pathLengths[i]));
+     const v=speeds[i],capacity=envelope(v,openings[i],this.verticalCurve[i],driveAcceleration(v,openings[i]));
+     const traction=remaining(capacity.rear,curvatures[i]*v*v*(1-frontShare));
+     speeds[i+1]=Math.min(speeds[i+1],Math.sqrt(v*v+2*Math.min(traction,(plannedForce(v)-capacity.drag)/mass)*this.pathLengths[i]));
    }
    if(!this.lastLap && this.lap!==1)speeds[0]=Math.min(speeds[0],speeds[n]);
  }
@@ -419,15 +442,24 @@ export class Cruise {
    const station=spaData.grid.s+distance;
    const path=this.racePath.getPoint(this.track.wrap(station)/this.track.length);
    const pitStation=this.pitStation(station);
+   if(this.lap===1 && pitStation>=350 && pitStation<640 && this.track.pit)return this.track.pit.exitLine(pitStation,path);
    if(pitStation>=-420 && pitStation<=490 && this.track.pit){
      return path.lerp(this.track.pit.point(pitStation),this.track.pit.blend(pitStation));
    }
    return path;
  }
- pose(){const position=this.point(),forward=this.point(this.distance+2).sub(this.point(this.distance-2)).normalize(),left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();position.addScaledVector(left,this.dynamics.offset);position.y=this.track.pit?.heightAt(position)??position.y;const quaternion=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward));quaternion.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),this.dynamics.headingError));return {position,quaternion};}
+ pose(){const position=this.point(),forward=this.point(this.distance+2).sub(this.point(this.distance-2)).normalize(),left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();position.addScaledVector(left,this.dynamics.offset);position.y=this.track.pit?.heightAt(position,false)??position.y;const quaternion=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward));quaternion.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),this.dynamics.headingError));return {position,quaternion};}
  curvature(distance=this.distance,span=4){const a=this.point(distance-span),b=this.point(distance),c=this.point(distance+span),u=b.clone().sub(a),v=c.clone().sub(b);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.1,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
  sampleContacts(h:number,{position,quaternion}=this.pose()){
    const suspension=this.dynamics.suspension;
+   for(const z of [-1.25,1.25]){
+     let relative=0;
+     for(const x of [-.09,.09]){
+       const probe=new T.Vector3(x,0,z).applyQuaternion(quaternion).add(position);
+       relative+=((this.track.pit?.heightAt(probe)??probe.y)-probe.y)*.5;
+     }
+     if(z>0)suspension.frontRoad=relative;else suspension.rearRoad=relative;
+   }
    for(const key of corners){
      const local=this.contactCenters[key];
      if(!local)continue;
@@ -468,10 +500,11 @@ export class Cruise {
  if(this.previousZone>=0 && zone && zone!==this.previousZone)this.aeroZone=zone;
  if(!zone || this.accelerationCommand<-.5)this.aeroZone=0;
  this.previousZone=zone;
- this.wingTravel=T.MathUtils.clamp(this.wingTravel+(this.aeroZone?1:-1)*h/.30,0,1);
- const opening=T.MathUtils.smoothstep(this.wingTravel,0,1);
+ this.wingTravel=advanceWing(this.wingTravel,!!this.aeroZone,h);
+ const opening=wingOpening(this.wingTravel);
  const vertical=this.speed**2*T.MathUtils.lerp(this.verticalCurve[index],this.verticalCurve[(index+1)%this.verticalCurve.length],this.distance/this.planStep-index);
- const resistance=aeroForces(this.speed,opening).drag+lateralParameters.mass*9.81*Math.sin(slope);
+ const suspension=this.dynamics.suspension;
+ const resistance=platformForces(this.speed,opening,suspension.frontGap,suspension.rearGap,suspension.beta).drag+lateralParameters.mass*9.81*Math.sin(slope);
  const corner=region(this.s);
  const learned=this.memory.corners[corner];
  const frontLock=Math.max(-this.dynamics.tyres.FL.slip,-this.dynamics.tyres.FR.slip);
@@ -550,7 +583,7 @@ export class Cruise {
      const sus=this.dynamics.suspension;
      this.samples[clip].push({s:this.s,t:this.elapsed,position:before.clone(),rotation:pose.quaternion.clone().invert(),
        rack:this.dynamics.steer,curve:k,yaw:this.dynamics.yawRate,rear:Math.atan2(this.dynamics.vy-lateralParameters.rearArm*this.dynamics.yawRate,Math.max(3,this.speed)),
-       speed:this.speed*3.6,throttle:this.gearbox.throttle,brake:this.gearbox.brake,rpm:this.gearbox.rpm,gear:this.gearbox.index+1,roll:sus.roll,pitch:sus.pitch,heave:sus.heave});
+       speed:this.speed*3.6,throttle:this.gearbox.throttle,brake:this.gearbox.brake,rpm:this.gearbox.rpm,gear:this.gearbox.index+1,roll:sus.roll,pitch:sus.pitch,heave:sus.heave,hubs:{...sus.hub}});
    }
  }
  const previousStation=this.s;
@@ -631,5 +664,5 @@ export class Cruise {
  const suspension=this.dynamics.suspension;
  const front=suspension.frontDownforce;
  const tyres=Object.fromEntries(corners.map(k=>{const t=this.dynamics.tyres[k];return [k,{pressure:t.pressure,contact:t.contactPressure,wear:1000*Math.max(...t.wear),locked:t.locked}];}));
- return {liveDelta:this.liveDelta(),report:this.timed||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:this.gearbox.energy/5e6},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.dynamics.suspension.loads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
+ return {platform:{wing:wingOpening(this.wingTravel),frontGap:suspension.frontGap,rearGap:suspension.rearGap},liveDelta:this.liveDelta(),report:this.timed||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:this.gearbox.energy/5e6},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.dynamics.suspension.loads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
 }

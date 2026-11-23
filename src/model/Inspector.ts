@@ -1,3 +1,6 @@
+import {createAirflow} from './Airflow';
+import {bindSuspensionLinks} from './SuspensionLinks';
+import {staticDrop,rootClearance} from '../motion/AeroPlatform';
 import {SkidSparks} from './SkidSparks';
 import {turnStations} from '../tracks/SpaMarkers';
 import {shiftRpm} from '../motion/Gearbox';
@@ -42,6 +45,15 @@ export class Inspector {
  scene=new T.Scene();track=new SpaTrack();line=new RacingLine(this.track);cruise=new Cruise(this.track,this.line);roadStyle:RoadStyle='soft';camera=new T.PerspectiveCamera(40,1,.02,15000);
  renderer:T.WebGLRenderer;controls:OrbitControls;free:FreeCamera;env:T.WebGLRenderTarget;resize:ResizeObserver;
  mode:'trackside'|'onboard'|'follow'|'overview'|'free'='follow';readonly displayScale=1.25;
+ private updateLinks?:()=>void;
+ private flow?:ReturnType<typeof createAirflow>;
+ setAirflow(enabled:boolean){
+   if(enabled && !this.flow){
+     this.flow=createAirflow();
+     this.scene.add(this.flow.mesh);
+   }
+   if(this.flow)this.flow.mesh.visible=enabled;
+ }
  private sparks=new SkidSparks(this.displayScale);
  tireEffects:Record<string,ReturnType<typeof wheelEffects>>={};
  shadow=contactShadow();frontFlap?:T.Group;rearFlap?:T.Group;wingTravel=0;gridWingPreview=false;
@@ -104,7 +116,7 @@ export class Inspector {
    child.position.y-=.30;
    this.chassis.add(child);
  }this.car.add(this.chassis);
- this.sparks.bindFloor(this.chassis);
+ this.updateLinks=bindSuspensionLinks(this.chassis,this.wheels);
  // Lens on the front of the roll-hoop camera pod; coordinates relative to the sprung chassis.
  this.onboardMount.position.set(.085,.93,-.19);
  this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');
@@ -267,7 +279,7 @@ export class Inspector {
    this.view('track');
  }
  fit(){const {width,height}=this.host.getBoundingClientRect();if(!width||!height)return;this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderer.setSize(width,height);}
- placeCar(dt=0){if(!this.car)return;const p=this.preview?.gridPose??this.cruise.pose();this.car.position.copy(p.position).multiplyScalar(this.displayScale);this.car.position.y+=.012;this.car.quaternion.copy(p.quaternion);this.car.scale.setScalar(this.displayScale);const suspension=this.cruise.dynamics.suspension;this.chassis.position.y=.30+suspension.heave;this.chassis.rotation.set(suspension.pitch,0,suspension.roll,'YXZ');}
+ placeCar(dt=0){if(!this.car)return;const p=this.preview?.gridPose??this.cruise.pose();this.car.position.copy(p.position).multiplyScalar(this.displayScale);this.car.position.y+=rootClearance*this.displayScale;this.car.quaternion.copy(p.quaternion);this.car.scale.setScalar(this.displayScale);const suspension=this.cruise.dynamics.suspension;this.chassis.position.y=.30-staticDrop+suspension.heave;this.chassis.rotation.set(suspension.pitch,0,suspension.roll,'YXZ');}
  followHeading?:T.Quaternion; heroFollow=true; followDistance=0;
  view(v:View){
  this.endRoofDrag();
@@ -383,6 +395,7 @@ export class Inspector {
  this.tyreViews[key as Corner]?.update(tyre);
  w.angle=moving?tyre.angle:(w.angle+(this.spinning?dt*2:0))%(2*Math.PI);w.spin.quaternion.setFromAxisAngle(w.axis,w.angle);
  }
+ this.updateLinks?.();
  this.updateWheelLCD();
  if(this.steeringWheel && this.wheels.FL && this.wheels.FR){
    // Symmetric rack angle from the two displayed Ackermann angles.
@@ -406,6 +419,12 @@ export class Inspector {
    this.wingTravel=T.MathUtils.clamp(this.wingTravel+(this.gridWingPreview?1:-1)*dt/.30,0,1);
  }else this.wingTravel=this.cruise.wingTravel;
  const blend=this.wingTravel*this.wingTravel*(3-2*this.wingTravel);
+ if(this.flow?.mesh.visible && this.car){
+   const mesh=this.flow.mesh;
+   mesh.position.copy(this.car.position);mesh.quaternion.copy(this.car.quaternion);mesh.scale.copy(this.car.scale);
+   const speed=this.cruise.speed,beta=Math.atan2(this.cruise.dynamics.vy,Math.max(1,speed));
+   this.flow.update(this.cruise.status==='paused'?0:dt,speed,blend,beta,this.cruise.dynamics.suspension.frontGap,this.cruise.dynamics.suspension.rearGap);
+ }
  setFlap(this.frontFlap,blend);setFlap(this.rearFlap,blend);
  (this.preview?.track??this.track).setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
  if(now-this.lastLabels<100)return;this.lastLabels=now;this.onCruise(this.cruise.snapshot());
@@ -417,13 +436,17 @@ export class Inspector {
  reviewImage(canvas:HTMLCanvasElement,f:ReviewFrame){
    const car=this.car;if(!car)return;
    const pos=car.position.clone(),q=car.quaternion.clone(),roll=this.chassis.rotation.clone(),height=this.chassis.position.y;
-   const wheelAngles=Object.values(this.wheels).map(w=>w.pivot.rotation.y);
+   const wheelStates=Object.values(this.wheels).map(w=>({angle:w.pivot.rotation.y,y:w.pivot.position.y}));
    const rack=this.steeringWheel?.rotation.z??0;
-   car.position.copy(f.position).multiplyScalar(this.displayScale);car.position.y+=.012;car.quaternion.copy(f.rotation);
-   this.chassis.position.y=.30+f.heave;this.chassis.rotation.set(f.pitch,0,f.roll,'YXZ');
-   for(const [name,w] of Object.entries(this.wheels))if(name.startsWith('F'))w.pivot.rotation.y=this.cruise.dynamics.wheelAngle(w.base.x,f.rack);
+   car.position.copy(f.position).multiplyScalar(this.displayScale);car.position.y+=rootClearance*this.displayScale;car.quaternion.copy(f.rotation);
+   this.chassis.position.y=.30-staticDrop+f.heave;this.chassis.rotation.set(f.pitch,0,f.roll,'YXZ');
+   for(const [name,w] of Object.entries(this.wheels)){
+     w.pivot.position.y=w.base.y+f.hubs[name as Corner];
+     if(name.startsWith('F'))w.pivot.rotation.y=this.cruise.dynamics.wheelAngle(w.base.x,f.rack);
+   }
    if(this.steeringWheel)this.steeringWheel.rotation.z=-T.MathUtils.clamp(10*f.rack,-Math.PI,Math.PI);
-   this.updateWheelLCD(f);this.onboardMount.getWorldPosition(this.replayCamera.position);
+   this.updateLinks?.();
+ this.updateWheelLCD(f);this.onboardMount.getWorldPosition(this.replayCamera.position);
    this.chassis.getWorldQuaternion(this.replayCamera.quaternion);
    this.replayCamera.rotateY(Math.PI);this.replayCamera.rotateX(-8*T.MathUtils.DEG2RAD);
    const renderer=this.renderer,viewport=renderer.getViewport(new T.Vector4());
@@ -432,7 +455,8 @@ export class Inspector {
    renderer.setViewport(0,0,w/ratio,h/ratio);renderer.render(this.scene,this.replayCamera);
    canvas.getContext('2d')?.drawImage(source,0,source.height-h,w,h,0,0,canvas.width,canvas.height);
    renderer.setViewport(viewport);car.position.copy(pos);car.quaternion.copy(q);this.chassis.rotation.copy(roll);this.chassis.position.y=height;
-   Object.values(this.wheels).forEach((w,i)=>w.pivot.rotation.y=wheelAngles[i]);
+   Object.values(this.wheels).forEach((w,i)=>{w.pivot.rotation.y=wheelStates[i].angle;w.pivot.position.y=wheelStates[i].y;});
+   this.updateLinks?.();
    if(this.steeringWheel)this.steeringWheel.rotation.z=rack;
    this.updateWheelLCD();renderer.render(this.scene,this.camera);
  }
