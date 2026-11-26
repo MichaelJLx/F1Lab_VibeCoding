@@ -42,7 +42,8 @@ export function createAirflow(chassis:T.Group){
    });
    return new T.Vector2(rig.radius,Number.isFinite(high-low)?(high-low)/2:.22);
  });
- const init:FlowRequest={type:'init',parts:encoded,shapes:shapes.map(s=>s.toArray())};
+ const clearance=bodyClearance(chassis);
+ const init:FlowRequest={type:'init',parts:encoded,shapes:shapes.map(s=>s.toArray()),clearance:clearance.image.data as Float32Array};
  worker.postMessage(init,encoded.flatMap(p=>p.indices?[p.positions.buffer,p.indices.buffer]:[p.positions.buffer]));
  const count=seeds.length*(steps+1)*ribbonVertices;
  const positions=new Float32Array(count*3),directions=new Float32Array(count*3);
@@ -71,10 +72,10 @@ export function createAirflow(chassis:T.Group){
  const previousTransit=new T.BufferAttribute(new Float32Array(count),1).setUsage(T.DynamicDrawUsage);
  const previousRatio=new T.BufferAttribute(new Float32Array(count),1).setUsage(T.DynamicDrawUsage);
  geometry.setAttribute('previousTransit',previousTransit);geometry.setAttribute('previousRatio',previousRatio);geometry.setAttribute('transit',transit);
- const uniforms={blend:{value:1},wheelShape:{value:shapes},wheelAxis:{value:wheelKeys.map(k=>new T.Vector3().fromArray(wheelRig.wheels[k].axis))},wheelPose:{value:Array.from({length:4},()=>new T.Vector4())},toChassis:{value:new T.Matrix4()},clearance:{value:bodyClearance(chassis)},advection:{value:0},exposure:{value:0},signal:{value:0}};
+ const uniforms={blend:{value:1},wheelShape:{value:shapes},wheelAxis:{value:wheelKeys.map(k=>new T.Vector3().fromArray(wheelRig.wheels[k].axis))},wheelPose:{value:Array.from({length:4},()=>new T.Vector4())},toChassis:{value:new T.Matrix4()},clearance:{value:clearance},advection:{value:0},exposure:{value:0},signal:{value:0}};
  const material=new T.ShaderMaterial({uniforms,side:T.DoubleSide,transparent:true,forceSinglePass:true,depthWrite:false,
  vertexShader:`
- uniform mat4 toChassis;uniform sampler2D clearance;uniform float exposure;attribute float underfloor;varying float floorRoom;attribute vec3 direction,flow,previous,previousDirection;attribute vec4 frame,previousFrame;
+ uniform mat4 toChassis;uniform sampler2D clearance;uniform float exposure;attribute float underfloor;varying float floorRoom;varying float floorStream;attribute vec3 direction,flow,previous,previousDirection;attribute vec4 frame,previousFrame;
  varying float ribbonFacing;
  attribute float ratio;uniform float blend;varying float localSpeed;
  attribute float transit,previousTransit,previousRatio;
@@ -90,18 +91,22 @@ export function createAirflow(chassis:T.Group){
    vec3 normal=normalize(transported.xyz-tangent*dot(transported.xyz,tangent));
    vec3 localAxis=abs(flow.x)>1.5?normalize(cross(tangent,normal)):normal;
    float width=transported.w;
-   width=min(width,max(.001,centre.y-.025)/max(.001,abs(localAxis.y)));
+   width=min(width,max(.001,centre.y-.011)/max(.001,abs(localAxis.y)));
    vec3 localOffset=localAxis*sign(flow.x)*width;
-   localPoint=centre+localOffset;floorRoom=1.;
+   localPoint=centre+localOffset;floorRoom=1.;floorStream=underfloor;
    if(underfloor>.5){
      vec3 body=(toChassis*vec4(localPoint,1.)).xyz;
      vec2 cell=body.xz/vec2(2.4,6.)+.5;
      float ceiling=2.;
      if(all(greaterThanEqual(cell,vec2(0.)))&&all(lessThan(cell,vec2(1.)))){
+       vec4 channel=texture2D(clearance,cell);
+       body.x=clamp(body.x,channel.b+.012,channel.a-.012);
+       localPoint.x+=(body.x-(toChassis*vec4(localPoint,1.)).x)/max(.5,toChassis[0].x);
+       cell=body.xz/vec2(2.4,6.)+.5;
        vec2 bounds=texture2D(clearance,cell).rg;
        if(bounds.x<=bounds.y)ceiling=localPoint.y+(bounds.x-body.y-.004)/max(.5,toChassis[1].y);
      }
-     floorRoom=smoothstep(.012,.023,ceiling);
+     floorRoom=smoothstep(.011,.018,ceiling);
      localPoint.y=clamp(localPoint.y,.011,max(.011,ceiling));
    }
    eye=modelViewMatrix*vec4(localPoint,1.);
@@ -111,7 +116,7 @@ export function createAirflow(chassis:T.Group){
    ribbonFacing=.65+.35*abs(dot(surfaceNormal,normalize(-eye.xyz)));
    gl_Position=projectionMatrix*eye;
  }`,fragmentShader:`
- varying float floorRoom;uniform vec4 wheelPose[4];uniform vec3 wheelAxis[4];uniform vec2 wheelShape[4];uniform mat4 toChassis;uniform sampler2D clearance;
+ varying float floorRoom;varying float floorStream;uniform vec4 wheelPose[4];uniform vec3 wheelAxis[4];uniform vec2 wheelShape[4];uniform mat4 toChassis;uniform sampler2D clearance;
  uniform float advection,exposure,signal;varying float localSpeed;varying float ribbonFacing;
  varying vec3 localPoint;
  varying float travel;
@@ -139,7 +144,7 @@ export function createAirflow(chassis:T.Group){
    vec2 cell=body.xz/vec2(2.4,6.)+.5;
    if(all(greaterThanEqual(cell,vec2(0.))) && all(lessThan(cell,vec2(1.)))){
      vec2 bounds=texture2D(clearance,cell).rg;
-     clearanceFade*=smoothstep(-.003,.02,max(bounds.x-body.y,body.y-bounds.y));
+     clearanceFade*=mix(smoothstep(-.003,.02,max(bounds.x-body.y,body.y-bounds.y)),smoothstep(.001,.004,bounds.x-body.y),floorStream);
    }
    if(clearanceFade<.001 || localPoint.y<0.)discard;
    vec2 uv=vec2(travel-advection,trace.x*1.8+trace.z*11.);
@@ -188,7 +193,7 @@ export function createAirflow(chassis:T.Group){
  };
  worker.onerror=event=>{pending=false;console.error('Airflow worker:',event.message);};
  const poses=Array.from({length:4},()=>new Array<number>(4)),axes=Array.from({length:4},()=>new Array<number>(3));
- return {mesh,uniforms,stats,setVisible(on:boolean){mesh.visible=on;appearance=0;elapsed=Infinity;shownAt=performance.now();stats.firstFrameMs=-1;},dispose(){disposed=true;worker.terminate();uniforms.clearance.value.dispose();},
+ return {mesh,uniforms,stats,setVisible(on:boolean){mesh.visible=on;appearance=0;elapsed=Infinity;shownAt=performance.now();stats.firstFrameMs=-1;},dispose(){disposed=true;worker.terminate();uniforms.clearance.value.dispose();geometry.dispose();material.dispose();},
  update(dt:number,speed:number,opening:number,beta:number,frontGap:number,rearGap:number,steer:number,renderDt=dt){
    if(mesh.visible&&received&&stats.firstFrameMs<0)stats.firstFrameMs=performance.now()-shownAt;
    appearance=Math.min(1,appearance+Math.max(0,renderDt)/.15);
@@ -202,7 +207,7 @@ export function createAirflow(chassis:T.Group){
    elapsed+=dt;if(speed<=.01 || elapsed<1/15 || pending || !buffers)return;elapsed=0;
    captureMatrices();
    for(let i=0;i<4;i++){uniforms.wheelPose.value[i].toArray(poses[i]);uniforms.wheelAxis.value[i].toArray(axes[i]);}
-   const request:FlowRequest={type:'step',state:{speed:smoothSpeed,opening:smoothOpening,beta:smoothBeta,frontGap,rearGap,steer:smoothSteer,poses,axes,matrices},buffers};
+   const request:FlowRequest={type:'step',state:{speed:smoothSpeed,opening:smoothOpening,beta:smoothBeta,frontGap,rearGap,steer:smoothSteer,poses,axes,matrices,toChassis:uniforms.toChassis.value.toArray()},buffers};
    pending=true;worker.postMessage(request,[buffers.positions.buffer,buffers.directions.buffer,buffers.frames.buffer,buffers.transit.buffer,buffers.ratios.buffer]);buffers=undefined;
  }};
 }

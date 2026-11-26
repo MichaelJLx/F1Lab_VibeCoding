@@ -1,28 +1,29 @@
 import * as T from 'three';
-import {straightModeZone} from '../motion/ActiveAero';
 import type {SpaTrack} from './SpaTrack';
 
 // Entry stations are registered to our ribbon, not survey coordinates.
 // Side is in the direction of travel. Data provenance is in README.
 type Approach={entry:number; sides:number[]; distances:number[]; blue?:boolean};
-const approaches:Record<string,Approach[]>={
- spa:[150,2200,2820,4260,6550].map(entry=>({entry,sides:[1],distances:[150,100,50]})),
- 'it-1922':[
-   {entry:610,sides:[1],distances:[100]},
-   {entry:1825,sides:[-1],distances:[100]},
-   {entry:3625,sides:[-1],distances:[100]},
-   {entry:4809,sides:[1,-1],distances:[150,100,50]}
- ],
- 'hu-1986':[{entry:3732,sides:[1],distances:[100],blue:true}],
- 'mx-1962':[{entry:3593,sides:[1],distances:[150]}],
- 'ca-1978':[{entry:2203,sides:[1],distances:[100]}],
- 'sa-2021':[{entry:5518,sides:[1,-1],distances:[100],blue:true}]
-};
+const spaApproaches:Approach[]=[150,2200,2820,4260,6550].map(entry=>({entry,sides:[1],distances:[150,100,50]}));
 export function addBrakingBoards(track:SpaTrack,id:string){
- if(id==='spa'){
-   let previous=straightModeZone(track.length-1,track.length);
+ const pit=track.pit;
+ if(pit)for(const [station,label] of [[pit.limitEntry,String(pit.speedLimit)],[pit.limitExit,'END']] as const){
+   const canvas=document.createElement('canvas');canvas.width=192;canvas.height=128;
+   const ctx=canvas.getContext('2d')!;ctx.fillStyle='#f6f6ee';ctx.fillRect(0,0,192,128);
+   ctx.fillStyle='#171819';ctx.font='bold 70px sans-serif';ctx.textAlign='center';ctx.fillText(label,96,83);
+   const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
+   const board=new T.Mesh(new T.PlaneGeometry(1.1,.73),new T.MeshBasicMaterial({map}));
+   const direction=pit.point(station+1).sub(pit.point(station-1)).normalize();
+   const side=new T.Vector3(direction.z,0,-direction.x);
+   const center=pit.point(station);if(track.point(station).sub(center).dot(side)>0)side.negate();
+   board.position.copy(center).addScaledVector(side,pit.halfWidth+.7);board.position.y+=1.1;
+   board.rotation.y=Math.atan2(-direction.x,-direction.z);board.name='Pit speed '+label;track.signs.add(board);
+ }
+
+ {
+   let previous=track.aeroZone(track.length-1);
    for(let s=0;s<track.length;s++){
-     const zone=straightModeZone(s,track.length);
+     const zone=track.aeroZone(s);
      if(zone!==previous){
        const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;
        const ctx=canvas.getContext('2d')!;
@@ -37,7 +38,8 @@ export function addBrakingBoards(track:SpaTrack,id:string){
      previous=zone;
    }
  }
- for(const approach of approaches[id]??[])for(const distance of approach.distances){
+ const entries=id==='spa'?spaApproaches:track.profile.groups.filter(g=>Math.abs(track.curvature(track.profile.turns[g.turn],18))>.007).map(g=>({entry:Math.max(0,track.profile.turns[g.turn]-70),sides:[1],distances:[150,100,50]} as Approach));
+ for(const approach of entries)for(const distance of approach.distances){
    const canvas=document.createElement('canvas');
    canvas.width=192;canvas.height=112;
    const ctx=canvas.getContext('2d')!;

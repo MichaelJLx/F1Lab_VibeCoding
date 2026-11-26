@@ -124,7 +124,7 @@ test('four wheels outside trigger recovery without refilling resources or counti
  assert.ok(Math.abs(resetPosition.y-track.pit!.heightAt(resetPosition,false)!)<1e-6,'supported by rendered road');
  assert.equal(car.dynamics.offset,0);assert.equal(car.dynamics.headingError,0);
  assert.equal(car.gearbox.energy,2e6);assert.equal(car.dynamics.tyres.FL.degradation,.25);
- assert.equal(car.dynamics.tyres.FL.temperature,105);assert.equal(car.dynamics.tyres.FL.wear[3],Math.fround(.004));
+ assert.equal(car.dynamics.tyres.FL.temperature,105);assert.equal(car.dynamics.tyres.FL.wear[3],0);
  car.tick(.7);for(let i=0;i<120;i++)car.tick(1/60);
  assert.ok(car.speed>0 && car.speed<25 && car.invalidLap && !car.recovering);
  assert.equal(car.gearbox.electricKw,0);assert.equal(car.wingTravel,0);

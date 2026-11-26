@@ -111,7 +111,7 @@ test('contact-patch streamlines remain outside steered tyres with continuous dow
  solve(state,buffers);
  for(let j=0;j<seeds.length;j++)for(let i=1;i<steps;i++){
    const k=(j*(steps+1)+i)*3*ribbonVertices;p.fromArray(buffers.positions,k);prev.fromArray(buffers.positions,k-3*ribbonVertices);next.fromArray(buffers.positions,k+3*ribbonVertices);
-   assert.ok(p.y>=.0249);assert.ok(p.z<prev.z&&p.z>next.z);
+   assert.ok(p.y>=(seeds[j][1]<.1?.0109:.0249));assert.ok(p.z<prev.z&&p.z>next.z);
    const turn=u.copy(p).sub(prev).angleTo(v.copy(next).sub(p));if(turn>maxTurn){maxTurn=turn;location={steer,j,i,prev:prev.toArray(),p:p.toArray(),next:next.toArray()};}
    for(let w=0;w<4;w++){
     d.set(p.x-state.poses[w][0],p.y-.35,p.z-state.poses[w][2]);axis.fromArray(state.axes[w]);const a=d.dot(axis),qa=Math.abs(a)-.18,qr=d.addScaledVector(axis,-a).length()-.35;
@@ -121,4 +121,27 @@ test('contact-patch streamlines remain outside steered tyres with continuous dow
  }
  assert.ok(minClearance>.04,`minimum tyre clearance ${minClearance}`);
  assert.ok(maxTurn<.55,`maximum segment turn ${maxTurn}: ${JSON.stringify(location)}`);
+});
+
+test('underfloor probes remain between the road and underside and inside both floor edges',()=>{
+ const clearance=new Float32Array(64*160*4);
+ for(let row=0;row<160;row++)for(let col=0;col<64;col++){
+   const i=4*(row*64+col),z=(row+.5)*6/160-3;
+   clearance[i]=.045+.10*T.MathUtils.smoothstep(-z,1.4,2.7);clearance[i+1]=.2;
+   clearance[i+2]=-.6;clearance[i+3]=.6;
+ }
+ const count=seeds.length*(steps+1)*ribbonVertices;
+ const buffers={positions:new Float32Array(count*3),directions:new Float32Array(count*3),frames:new Float32Array(count*4),transit:new Float32Array(count),ratios:new Float32Array(count)};
+ const solve=createFlowSolver([],Array.from({length:4},()=>[.35,.18]),clearance);
+ for(const beta of [-.12,0,.12]){
+   solve({speed:85,opening:.5,beta,frontGap:.025,rearGap:.04,steer:.2,poses:[[-.77,.35,1.69,0],[.77,.35,1.69,0],[-.77,.35,-1.69,0],[.77,.35,-1.69,0]],axes:Array.from({length:4},()=>[1,0,0]),matrices:[]},buffers);
+   for(let j=0;j<seeds.length;j++)if(seeds[j][1]<.1)for(let k=0;k<=steps;k++){
+     const i=3*(j*(steps+1)+k)*ribbonVertices,x=buffers.positions[i],y=buffers.positions[i+1],z=buffers.positions[i+2];
+     if(z>2.25||z< -2.5)continue;
+     const bottom=.045+.10*T.MathUtils.smoothstep(-z,1.4,2.7);
+     assert.ok(Math.abs(x)+.023<.6,'ribbon stays inside floor edge');
+     assert.ok(Math.abs(x)>.14,'plank remains between channels');
+     assert.ok(y>.0109&&y<bottom-.004,'road-to-floor clearance');
+   }
+ }
 });

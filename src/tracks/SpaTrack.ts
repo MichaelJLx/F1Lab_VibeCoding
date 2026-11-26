@@ -1,3 +1,5 @@
+import {drivingProfile} from './DrivingProfile';
+import {straightModeZone} from '../motion/ActiveAero';
 import {PitLane} from './PitLane';
 import * as T from 'three';
 import {cornerPlate,turnStations} from './SpaMarkers';
@@ -22,13 +24,16 @@ export class SpaTrack {
  private curbPoint=new T.Vector3();private curbBary=new T.Vector3();
  private lastStyle?:RoadStyle;private lastUnder?:boolean;
  private curbBands:{start:number,end:number,side:number}[]=[];
- constructor(private layout:RibbonData=data,id="spa",signage=true){
+ profile!:ReturnType<typeof drivingProfile>;
+ aeroZone(s:number){return this.id==='spa'?straightModeZone(this.wrap(s),this.length):this.profile.zones.findIndex(z=>(z.end<z.start?this.wrap(s)>=z.start||this.wrap(s)<z.end:this.wrap(s)>=z.start&&this.wrap(s)<z.end))+1;}
+ constructor(public layout:RibbonData=data,public id="spa",signage=true){
  const isSpa=layout===spaData;this.length=layout.geometryLength;
  const data=layout;
  const start=this.rawSample(data.grid.s),front=this.rawSample(data.grid.s+1),back=this.rawSample(data.grid.s-1);
  this.startForward=front.clone().sub(back);this.spawnSlope=this.startForward.y/Math.hypot(this.startForward.x,this.startForward.z);this.startForward.y=0;this.startForward.normalize();this.startLeft=new T.Vector3(-this.startForward.z,0,this.startForward.x);
  this.spawn=start.addScaledVector(this.startLeft,data.grid.lateral);
- if(isSpa)this.pit=new PitLane(this);
+ this.profile=drivingProfile(this);
+ this.pit=new PitLane(this);
  const vertices:number[]=[],indices:number[]=[],curbVertices:number[]=[],curbColors:number[]=[],curbIndices:number[]=[],lines:T.Vector3[]=[];
  const curbZones:typeof zones=isSpa?zones:[];
  if(!isSpa){
@@ -108,18 +113,11 @@ export class SpaTrack {
  asphalt.generateMipmaps=true;asphalt.minFilter=T.LinearMipmapLinearFilter;
  asphalt.magFilter=T.LinearFilter;asphalt.needsUpdate=true;
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
- if(this.pit && !signage){
-   // Worker rollouts query the same driving surface as the rendered circuit.
-   for(let i=1;i<rows.length;i++){
-     const a=rows[i-1],b=rows[i];
-     this.pit.addFace(a.left,b.left,a.right);this.pit.addFace(a.right,b.left,b.right);
-   }
-   for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c,true);
- }
- if(this.pit && signage){
+ if(this.pit){
    const lane=this.pit.surface(rows,this.road.material as T.Material);
    for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c,true);
-   this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());
+   if(signage){this.road.add(lane.road);this.markings.add(lane.paint,this.pit.fence());}
+   else{lane.road.geometry.dispose();lane.paint.geometry.dispose();(lane.paint.material as T.Material).dispose();}
  }
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);
  // Selected curb ranges follow named corners; exact widths/placement are declared approximations.
@@ -136,7 +134,8 @@ export class SpaTrack {
  const white=new T.Color(0xf5f3e9),yellow=new T.Color(0xe9bf43);
  for(let i=0;i<data.grid.rows*2;i++){
    const center=data.grid.s-i*data.grid.stagger;
-   const lateral=i%2===0?data.grid.lateral:-data.grid.lateral;
+   const gridOffset=data.grid.lateral||Math.min(3,this.width(center)-2);
+   const lateral=i%2===0?gridOffset:-gridOffset;
    const half=data.grid.boxWidth/2,front=center+2.8;
    stripe(front-.12,front,lateral-half,lateral+half,white);
    for(const edge of [lateral-half,lateral+half-.12])stripe(front-1.6,front,edge,edge+.12,white);
@@ -188,8 +187,9 @@ export class SpaTrack {
    return across?.lengthSq()?(.25*height(-1)+.5*height(0)+.25*height(1)):height(0);
  }
  pose(s:number,lateral=0){const position=this.point(s,lateral),forward=this.point(s+2,lateral).sub(this.point(s-2,lateral)).normalize();const left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();return {position,forward,quaternion:new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward))};}
- curvature(s:number){const [a,b,c]=this.curveScratch;this.point(s-6,0,a);this.point(s,0,b);this.point(s+6,0,c);const v=c.sub(b),u=b.sub(a);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.01,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
+ curvature(s:number,span=6){const [a,b,c]=this.curveScratch;this.point(s-span,0,a);this.point(s,0,b);this.point(s+span,0,c);const v=c.sub(b),u=b.sub(a);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.01,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
  setStyle(style:RoadStyle,under:boolean){if(style===this.lastStyle && under===this.lastUnder)return;this.lastStyle=style;this.lastUnder=under;const mat=this.road.material as T.MeshStandardMaterial;mat.transparent=under;mat.opacity=under?.08:1;mat.depthWrite=!under&&style!=='outline';this.road.visible=style!=='outline';mat.color.setHex(style==='clear'?0x292a2c:0x38393a);this.curbs.visible=!under;this.markings.visible=!under;(this.edges.material as T.LineBasicMaterial).opacity=under?.08:style==='outline'?.85:.35;}
  overview(){const c=this.bounds.getCenter(new T.Vector3()),size=this.bounds.getSize(new T.Vector3());return {target:c,position:c.clone().add(new T.Vector3(size.x*.25,Math.max(size.x,size.z)*1.3,Math.max(size.x,size.z)*.42))};}
- dispose(){(this.road.material as T.MeshStandardMaterial).map?.dispose();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.Line){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){if(o.name.startsWith("Brake board") || o.name==="Corner number")m.map?.dispose();m.dispose();}}});}
+ dispose(){const textures=new Set<T.Texture>(),materials=new Set<T.Material>(),geometries=new Set<T.BufferGeometry>();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.Line){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);}});for(const m of materials){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}for(const t of textures)t.dispose();for(const g of geometries)g.dispose();}
+
 }

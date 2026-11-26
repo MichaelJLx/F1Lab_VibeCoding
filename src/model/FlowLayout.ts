@@ -14,8 +14,10 @@ for(const side of [-1,1]){
 for(const side of [-1,1])for(const [x,y,z] of [[.30,.92,1.25],[.43,1.02,.6],[.28,.98,-.3],[.66,.56,.55],[.70,.12,.25],[.54,.16,-1.5]])seeds.push([side*x,y,3.85]);
 for(const side of [-1,1])for(const [x,y,z] of [[.18,.34,2.35],[.35,.4,1.4],[.51,.24,.65],[.58,.53,.35],[.60,.44,-.35]])seeds.push([side*x,y,3.85]);
 // Low outboard probes start outside the contact wedge upstream.
-for(const seed of seeds)if(seed[1]<.3&&Math.abs(seed[0])>.57)seed[0]=Math.sign(seed[0])*(1.18+(.3-seed[1])*.25);
-for(const seed of seeds)if(seed[1]<.4&&Math.abs(seed[0])<=.57)seed[0]*=.65;
+for(const seed of seeds)if(seed[1]>=.1&&seed[1]<.3&&Math.abs(seed[0])>.57)seed[0]=Math.sign(seed[0])*(1.18+(.3-seed[1])*.25);
+for(const seed of seeds)if(seed[1]>=.1&&seed[1]<.4&&Math.abs(seed[0])<=.57)seed[0]*=.65;
+// Longitudinal probes on both sides of the plank, within the floor channels.
+for(const side of [-1,1])for(const x of [.29,.46,.64])seeds.push([side*x,.065,3.85]);
 // Regularized doublets in ellipsoid coordinates approximate displacement around
 // wheels, nose and sidepods. Wing turning and diffuser flow use the force model.
 export const bodies=[

@@ -1,42 +1,37 @@
 import * as T from 'three';
 import type {Tyre} from '../motion/Tyre';
-// A one-dimensional material-space tread map rotates with the rubber.
-export function tyreView(spin:T.Group,radius:number){
- const bytes=new Uint8Array(48*4),tex=new T.DataTexture(bytes,48,1);
- tex.magFilter=T.LinearFilter;tex.minFilter=T.LinearFilter;tex.wrapS=T.RepeatWrapping;
- tex.needsUpdate=true;
- const wheel=spin.children[0];
+
+// Scars are in rubber material coordinates, so neither steering nor wheel spin
+// can slide the mark across the tread. Exact phase is kept outside the heat texture.
+export function tyreView(spin:T.Group,radius:number,axis=new T.Vector3(1,0,0)){
+ const materials:T.MeshStandardMaterial[]=[];
+ const scars=Array.from({length:8},()=>new T.Vector2());
+ const wheel=spin.children[0],center=wheel.position.clone().negate();
+ const bottom=new T.Vector3(0,-1,0).addScaledVector(axis,axis.y).normalize();
+ const tangent=new T.Vector3().crossVectors(bottom,axis).normalize();
+ const declarations=`uniform vec2 scars[8]; uniform float radius;
+ float scarDepth(float u){float depth=0.;for(int j=0;j<8;j++){float c=cos(u-scars[j].x);if(scars[j].y>0. && c>0.)depth=max(depth,radius-(radius-scars[j].y)/c);}return depth;}`;
  wheel.traverse(obj=>{
-   if(!(obj instanceof T.Mesh)||!obj.material.name.startsWith('sidewall'))return;
+   if(!(obj instanceof T.Mesh)||Array.isArray(obj.material)||!obj.material.name.startsWith('sidewall'))return;
    const mat=obj.material.clone() as T.MeshStandardMaterial;
-   const center=wheel.position.clone().negate();
    mat.onBeforeCompile=shader=>{
-     shader.uniforms.treadMap={value:tex};shader.uniforms.treadCenter={value:center};shader.uniforms.radius={value:radius};
-     shader.vertexShader='uniform sampler2D treadMap; uniform vec3 treadCenter; uniform float radius; varying vec2 treadUV;\n'+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-       vec2 radial=position.yz-treadCenter.yz;
-       float u=fract(atan(radial.y,-radial.x)/6.2831853);
-       treadUV=vec2(u,smoothstep(radius*.88,radius*.97,length(radial)));
-       float cut=0.;
-       for(int j=-2;j<=2;j++){
-         float sector=floor(u*48.)+float(j);
-         float depth=texture2D(treadMap,vec2((sector+.5)/48.,.5)).g*.009;
-         float angle=((sector+.5)/48.-u)*6.2831853;
-         if(depth>0.) cut=max(cut,length(radial)-(radius-depth)/max(.01,cos(angle)));
-       }
-       transformed.yz-=normalize(radial+vec2(1e-7))*cut*treadUV.y;`);
-     shader.fragmentShader='uniform sampler2D treadMap; varying vec2 treadUV;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
-       float heat=texture2D(treadMap,vec2(treadUV.x,.5)).r*treadUV.y;
-       diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92,.023,.008),heat);`);
+     Object.assign(shader.uniforms,{treadCenter:{value:center},radius:{value:radius},scars:{value:scars},tyreAxis:{value:axis},treadBottom:{value:bottom},treadTangent:{value:tangent}});
+     shader.vertexShader=declarations+`uniform vec3 treadCenter,tyreAxis,treadBottom,treadTangent; varying vec2 treadUV;\n`+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+       vec3 radial=position-treadCenter;radial-=tyreAxis*dot(radial,tyreAxis);
+       float angle=atan(dot(radial,treadTangent),dot(radial,treadBottom));
+       treadUV=vec2(fract(angle/6.2831853+1.),smoothstep(radius*.88,radius*.97,length(radial)));
+       transformed-=normalize(radial+vec3(1e-7))*scarDepth(angle)*treadUV.y;`);
+     shader.fragmentShader=declarations+'varying vec2 treadUV;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+       float damage=scarDepth(treadUV.x*6.2831853)*treadUV.y;
+       float worn=smoothstep(.000015,.0012,damage);
+       float grain=.86+.14*sin(treadUV.x*2300.);
+       diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.49,.48,.45)*grain,worn*.86);`)
+       .replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+       roughnessFactor=mix(roughnessFactor,.98,worn);`);
    };
-   obj.material=mat;
+   mat.customProgramCacheKey=()=> 'rubber-flat-phase-v2';obj.material=mat;materials.push(mat);
  });
- return {dispose:()=>tex.dispose(),update(t:Tyre){
-   let changed=false;
-   for(let i=0;i<48;i++){
-     const heat=Math.round(255*t.heat[i]),wear=Math.round(255*t.wear[i]/.009);
-     if(bytes[4*i]===heat && bytes[4*i+1]===wear)continue;
-     bytes[4*i]=heat;bytes[4*i+1]=wear;changed=true;
-   }
-   if(changed)tex.needsUpdate=true;
+ return {dispose:()=>materials.forEach(m=>m.dispose()),update(t:Tyre){
+   for(let i=0;i<8;i++)scars[i].set(t.flatSpots[i].phase,t.flatSpots[i].depth);
  }};
 }

@@ -18,7 +18,7 @@ export class RacingLine {
    this.alternatives.computeLineDistances();this.alternatives.geometry.computeBoundingSphere();
  }
  constructor(public track:SpaTrack){
- const points=spaData.nodes.map((n,i)=>track.point(n.s,data.offsets[i]));this.curve=new T.CatmullRomCurve3(points,true,'centripetal');
+ const points=track.layout.nodes.map((n,i)=>track.point(n.s,track.id==='spa'?data.offsets[i]:0));this.curve=new T.CatmullRomCurve3(points,true,'centripetal');
  this.mesh=new T.Mesh(new T.BufferGeometry(),new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
  this.mesh.renderOrder=3;this.alternatives.renderOrder=2;this.group.add(this.mesh,this.alternatives);this.alternatives.visible=false;
  }
@@ -37,5 +37,6 @@ export class RacingLine {
    }
    g.setAttribute('color',new T.BufferAttribute(colors,3));
  }
+ dispose(){this.mesh.geometry.dispose();(this.mesh.material as T.Material).dispose();this.alternatives.geometry.dispose();this.alternatives.material.dispose();}
  point(s:number){return this.curve.getPoint(this.track.wrap(s)/this.track.length);}
 }

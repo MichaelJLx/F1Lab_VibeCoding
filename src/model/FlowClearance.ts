@@ -3,7 +3,7 @@ import * as T from 'three';
 // Vertical silhouette of the sprung body, sampled in chassis-local metres.
 // Store the underside separately so smoke can still pass through the floor gap.
 export function bodyClearance(chassis:T.Group){
- const nx=64,nz=160,data=new Float32Array(nx*nz*4);
+ const nx=64,nz=160,data=new Float32Array(nx*nz*4),edges=Array.from({length:nz},()=>[Infinity,-Infinity]);
  for(let i=0;i<data.length;i+=4){data[i]=2;data[i+1]=-2;}
  chassis.updateWorldMatrix(true,true);
  const inverse=chassis.matrixWorld.clone().invert();
@@ -29,10 +29,12 @@ export function bodyClearance(chassis:T.Group){
            if(u<0 || v<0 || u+v>1)continue;
            const j=4*(z*nx+x),y=a.y+u*(b.y-a.y)+v*(c.y-a.y);
            data[j]=Math.min(data[j],y);data[j+1]=Math.max(data[j+1],y);
+           if(name==='floor'){edges[z][0]=Math.min(edges[z][0],(x+.5)*2.4/nx-1.2);edges[z][1]=Math.max(edges[z][1],(x+.5)*2.4/nx-1.2);}
          }
      }
    });
  }
+ for(let z=0;z<nz;z++)for(let x=0;x<nx;x++){const i=4*(z*nx+x);data[i+2]=Number.isFinite(edges[z][0])?edges[z][0]:-1.2;data[i+3]=Number.isFinite(edges[z][1])?edges[z][1]:1.2;}
  const texture=new T.DataTexture(data,nx,nz,T.RGBAFormat,T.FloatType);
  texture.needsUpdate=true;
  return texture;

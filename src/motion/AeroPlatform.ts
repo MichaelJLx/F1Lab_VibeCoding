@@ -1,7 +1,7 @@
 import rig from '../model/suspension-rig.json';
 
 // Model-space floor samples in metres; ground effect coefficients are estimates.
-export const staticDrop=.003;
+export const staticDrop=.028;
 export const rootClearance=.012/1.25;
 export const floorSamples=rig.probes;
 const front=floorSamples.find(v=>v[2]===1.25)!;

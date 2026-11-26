@@ -15,5 +15,5 @@ for id, region, name in rows:
     scale=min(208/(xmax-xmin),108/(ymax-ymin))
     points=[(120+(x-(xmin+xmax)/2)*scale,66+(y-(ymin+ymax)/2)*scale) for x,y in points]
     path=' '.join(('M' if i==0 else 'L')+f'{x:.1f},{y:.1f}' for i,(x,y) in enumerate(points))+' Z'
-    catalog.append(dict(id=id,region=region,name=name,english=f['properties']['Name'],path=path,available=id=='be-1925'))
+    catalog.append(dict(id=id,region=region,name=name,english=f['properties']['Name'],path=path,available=True))
 (root/'src/tracks/catalog.json').write_text(json.dumps(catalog,ensure_ascii=False,separators=(',',':'))+'\n')

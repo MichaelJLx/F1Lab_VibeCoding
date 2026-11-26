@@ -16,7 +16,8 @@
 | --- | --- | --- |
 | **2026 Redbull RB22** | Dave Love（Tyler_Dave），[Sketchfab 原作](https://sketchfab.com/3d-models/2026-redbull-rb22-0a3d24a58e0549d591a5a48c22eec383) · [AgentiLoop/F1 上游版本](https://github.com/AgentiLoop/F1) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。上游调整了金色紧固件贴图。Formula one 保留原涂装，烘焙模型变换，按 1.90 m 参考宽度缩放，并绑定车轮、主动翼与悬架。[修改与署名记录](data/models/rb22/UPSTREAM-CREDITS.md) · [模型清单](public/models/manifest.json) |
 | 24 站平面布局 | Tomislav Bacinger，[f1-circuits](https://github.com/bacinger/f1-circuits) | 经纬度中心线用于生成缩略图、三维路带和发车格。[MIT](data/tracks/layouts/LICENSE-layout.md) |
-| Spa 维修区中心线 | © OpenStreetMap contributors，[Pit Lane · way 323851541](https://www.openstreetmap.org/way/323851541) | 维修区道路的平面走向。[ODbL 1.0](https://www.openstreetmap.org/copyright) |
+| 24 站维修区道路 | © OpenStreetMap contributors · [Spa 原始道路](https://www.openstreetmap.org/way/323851541) · [各站道路数据](data/tracks/pit-lanes/) | 按各赛道独立道路铺设入口、限速段、车位、出口与并线段。[ODbL 1.0](https://www.openstreetmap.org/copyright) |
+| 弯号、计时线与直道区 | [F1 Sensor](https://github.com/Nicxe/f1_sensor) · [MultiViewer 地图](https://api.multiviewer.app/api/v1/circuits) · FIA 分站赛事图 | 配准起终点、弯道、分段与直道激活位置。[MIT 署名](data/tracks/annotations/LICENSE) · [地图来源及配准结果](src/tracks/circuit-markings.json) |
 | 地形与高程 | [Mapzen Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) · [Open Topo Data / EU-DEM](https://www.opentopodata.org/datasets/eudem/) | Mapzen 瓦片生成其余 23 站的纵坡；Spa 另存有 EU-DEM 25 m 采样。地形数据按地区保留原提供方署名。[Mapzen 数据提供方与使用条件](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) |
 | 翼面风洞压力 | Ladson、Hill 与 Johnson，NASA TM 100526 | NACA 0012 双面压力测点用于翼面 Cp 配色与吸力面烟流速度参考。[实验数据与验证说明](https://tmbwg.github.io/turbmodels/naca0012_val.html) |
 | 比赛遥测 | [OpenF1](https://openf1.org/)，2024 年比利时大奖赛 | 佩雷兹第 44 圈用于配准路线、速度与 Raidillon 高差；20 位车手的 723 个绿旗有效圈用于节奏对照。[本地基准数据](data/tracks/spa/race-pace/benchmark.json) |
@@ -62,18 +63,19 @@ npm run dev
 
 | 模块 | 当前能力 |
 | --- | --- |
-| **赛道浏览** | 24 站目录、三维路带与赛车检视；完整驾驶流程当前接入 Spa，其余赛道持续扩展 |
+| **赛道浏览** | 24 站目录、独立维修区与完整跑圈；各站共用四轮动力学、ERS、轮胎与主动翼规则 |
 | **驾驶流程** | 维修区出站、1–44 个有效飞驰圈与进站；四轮完全越界后自动复位，本圈作废且不占有效圈数 |
-| **走线规划** | Spa 全部 19 弯按八组评估，联合比较入弯位置、弯心时机与出弯走线，以组合弯总用时筛选 |
-| **跨圈调整** | 记录弯段成绩、侧滑与驾驶失误，为下一圈调整线路和制动策略；主线显示当前预测路线，备选线显示实际评估的其他候选，两个开关只影响显示 |
+| **走线规划** | 全赛道按弯道与连续弯分组，联合比较入弯位置、弯心时机与出弯走线，以整组通过时间筛选 |
+| **跨圈调整** | 保留各组历史安全最快策略，与小步探索逐项比较；失误后回退并缩小探索步长；主线显示当前预测路线，备选线显示实际评估的其他候选，两个开关只影响显示 |
 | **车辆动力学** | 四轮载荷转移、独立悬架、滑移与横摆、循迹刹车、八速传动及主动翼联动 |
+| **轮胎与悬挂** | 单轮抱死平斑随胎面旋转、摩擦白烟、四轮独立行程与连杆联动；底板接地才产生带反弹拖尾的火花 |
 | **能源与轮胎** | 两个消耗开关默认关闭，保持满电与满抓地力；仅有效飞驰圈可部署 ERS 和开启直道模式，其余圈程锁定基础模式，开启消耗时仍可制动回收 |
 | **空力展示** | 上游烟流、车身绕流、底板通道与尾流；独立 Cp 车身着色，关闭后恢复涂装，四轮保持原材质 |
-| **实时遥测** | 最近 400 m 的车速／踏板、气动、底盘曲线；上一飞驰圈同位置对比、分段成绩与圈速榜 |
+| **实时遥测** | 最近 400 m 的车速／踏板、气动、底盘曲线；上一飞驰圈同位置对比、最快圈与差距、分段配色及理论最快圈 |
 | **车内仪表** | 挡位、车速、圈速差、ERS、制动平衡、空力模式、四轮温度／胎压及实体 LED 换挡提示 |
 | **观看与检视** | 头盔、车载、车尾、俯瞰、自由及赛道转播；部件标注、结构视图、车轮拆解与指定弯段回放 |
 
-赛道几何由公开布局、高程和赛事资料重建；车辆动力学与部分局部路宽、横坡、路肩采用工程估值。Spa 展示官方长度 7.004 km，模拟里程按本地路带约 6.984 km 计算。数据依据见 [素材与赛道来源](docs/sources.md)、[动力学参考](docs/vehicle-dynamics.md)。
+赛道布局、维修区道路与赛事图的来源见 [素材与赛道来源](docs/sources.md)。
 
 ### 空气动力学
 
@@ -81,7 +83,7 @@ npm run dev
 
 - **流场计算：** Web Worker 推演完整路径，平滑处理部件绕流、翼尖涡流与扩散器尾流。
 - **连续显示：** 平行传输标架生成烟带，GPU 复用缓冲区，对路径、流速和行程坐标同步插值；加载时预热完整流线。
-- **车底约束：** 从模型生成下表面高度场，限制烟带处于地面与底板间隙内。
+- **车底约束：** 从模型生成下表面高度场，将车底纵向烟流限制在底板宽度及离地间隙内，沿中央木板两侧进入扩散器。
 - **空力读数：** 前后轴分力及占比、阻力、L/D、主动翼模式和底板中段相对来流速度探针。
 
 ### 遥测与交互
@@ -95,7 +97,7 @@ npm run dev
 
 遥测距离刻度使用独立 HTML 标尺，避免随波形缩放变形。窄屏下 HUD 分行排列，车载与头盔视角降低遥测透明度，控制栏独立预留画布空间。
 
-四轮完全离开沥青及路肩后，车辆会短暂停顿并在前方中心线复位，保留电量与轮胎状态，随后平滑回到当前走线。本圈计时与分段均标为「无效圈」，不进入圈速榜；重新通过起终点后开始新的有效飞驰圈。走线贴合路面上方 3 cm，备选线在飞驰圈方案就绪后显示，显示开关不改变驾驶决策。
+四轮完全离开沥青及路肩后，车辆会短暂停顿并在前方中心线复位，保留电量、胎温与累计磨损，清除抱死平斑，随后平滑回到当前走线。本圈计时与分段均标为「无效圈」，不进入圈速榜；重新通过起终点后开始新的有效飞驰圈。走线贴合路面上方 3 cm，备选线在飞驰圈方案就绪后显示，显示开关不改变驾驶决策。
 
 <a id="技术架构"></a>
 ## 🛠️ 技术架构
@@ -144,13 +146,13 @@ flowchart LR
 │   │   ├── AeroPlatform.ts      离地间隙、地面效应、翼面与阻力
 │   │   ├── Tyre.ts              胎压、温度、磨损、锁死
 │   │   ├── Gearbox.ts           八速传动、RPM 与驱动力
-│   │   └── ActiveAero.ts        直道/弯道模式与翼面开度
+│   │   └── ActiveAero.ts        直道/基础模式与翼面开度
 │   ├── optimizer/RacingLine.ts  预计算行车线偏移与参考线网格
 │   ├── tracks/
 │   │   ├── SpaTrack.ts          Spa 路带、路肩、发车格、维修区装配
-│   │   ├── StaticCircuit.ts     其余 23 站的静态路带
+│   │   ├── StaticCircuit.ts     其余 23 站的驾驶赛道
 │   │   ├── PitLane.ts           维修区中心线、路面、围栏与车位
-│   │   ├── BrakingBoards.ts     部分赛道的刹车距离牌
+│   │   ├── BrakingBoards.ts     全赛道刹车、直道模式与维修区限速牌
 │   │   ├── SpaMarkers.ts        弯号牌与弯道站位
 │   │   ├── catalog.json         24 站目录
 │   │   ├── static-circuits.json 23 站路带点列
@@ -161,7 +163,8 @@ flowchart LR
 │   │   ├── WheelEffects.ts      轮下接触阴影与运动残影
 │   │   ├── TyreView.ts          胎面温度与磨损着色
 │   │   ├── SuspensionLinks.ts   随车轮行程变形的悬架连杆
-│   │   ├── SkidSparks.ts        底板火花
+│   │   ├── SkidSparks.ts        底板触地火花
+│   │   ├── TyreSmoke.ts         单轮摩擦白烟
 │   │   ├── MirrorGlare.ts       后视镜反光
 │   │   ├── Airflow.ts           GPU 流带与缓冲区管理
 │   │   ├── flow.worker.ts       独立流场计算线程
@@ -203,6 +206,7 @@ flowchart LR
 | `npm test` | 走线连续性、驾驶学习、模型完整性、流场边界、Cp 材质与 ERS 回收回归 |
 | `npm run test:spa` | Spa 整圈回归，默认 1 圈 |
 | `SPA_LAPS=5 npm run test:spa` | 多圈驾驶与圈速回归 |
+| `npm run test:circuits` | 其余 23 站维修区接缝、路面支撑、出站／飞驰圈／回站及权限回归 |
 | `npm run test:spa -- --bus-stop` | Bus Stop 连续弯走线对比 |
 
 整圈测试与可视化／模型单元测试分别运行。流场还需在浏览器中检查转向、起伏、主动翼切换和不同镜头下的画面。
@@ -225,6 +229,10 @@ scripts/tracks/build-spa.mjs             → src/tracks/spa.json、data/tracks/s
 scripts/tracks/fetch-circuit-terrain.py  → data/tracks/terrain/terrain.json
 scripts/tracks/build-track-catalog.py    → src/tracks/catalog.json
 scripts/tracks/build-static-circuits.py  → src/tracks/static-circuits.json
+scripts/tracks/fetch-markings.py         → data/tracks/annotations/
+scripts/tracks/build-markings.py         → src/tracks/circuit-markings.json
+scripts/tracks/fetch-pit-lanes.py        → data/tracks/pit-lanes/
+scripts/tracks/build-pit-lanes.py        → src/tracks/circuit-pits.json
 scripts/tracks/build-race-path.py        → src/tracks/spa-race-path.json、src/tracks/spa-flying-speed.json、data/tracks/spa/raidillon-profile.json
 scripts/tracks/build-fast-line.py        → src/tracks/spa-fast-line.json
 scripts/tracks/build-race-speed.py       → src/tracks/spa-race-speed.json
@@ -249,6 +257,8 @@ scripts/model/build-wing-rig.py          → src/model/flap-ranges.json
 
 | 任务标识 | 主题 | 状态 | 最近更新 | 当前成果 |
 | --- | --- | --- | --- | --- |
+| 2026-11-26_04_轮胎与悬挂 | 抱死平斑、摩擦烟雾、触底火花与独立悬挂 | 已完成 | 2026-11-27 | [轮胎](src/motion/Tyre.ts) · [悬挂](src/motion/Suspension.ts) |
+| 2026-11-26_03_全赛道与车底流场 | 全赛道维修区、驾驶、车底流场与计时界面 | 已完成 | 2026-11-26 | [维修区](src/tracks/PitLane.ts) · [各站道路](src/tracks/circuit-pits.json) · [驾驶逻辑](src/motion/Cruise.ts) |
 | 2026-11-26_01_驾驶异常排查 | 驾驶一致性检查 | 已完成 | 2026-11-26 | [驾驶逻辑](src/motion/Cruise.ts) · [专项回归](tests/driving.ts) · [整圈回归](tests/spa-lap.ts) |
 | 2026-11-26_02_走线与无效圈 | 走线显示、越界复位与圈次权限 | 已完成 | 2026-11-26 | [走线显示](src/optimizer/RacingLine.ts) · [驾驶与计时](src/motion/Cruise.ts) · [专项回归](tests/driving.ts) |
 

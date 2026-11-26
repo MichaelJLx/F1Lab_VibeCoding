@@ -19,12 +19,14 @@ export class Suspension {
  surfaceGrip:Record<Corner,number>={FL:1,FR:1,RL:1,RR:1};
  ground:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  groundRate:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
+ runout:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
+ runoutRate:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  hub:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  hubRate:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  loads:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  travel:Record<Corner,number>={FL:0,FR:0,RL:0,RR:0};
  constructor(public mass:number,public a:number,public b:number){this.reset();}
- reset(){this.frontRoad=this.rearRoad=this.beta=0;this.roll=this.pitch=this.heave=this.rollRate=this.pitchRate=this.heaveRate=this.frontDownforce=this.downforce=this.drag=0;for(const k of corners){this.surfaceGrip[k]=1;this.loads[k]=this.mass*9.81*(k[0]==='F'?this.b:this.a)/(this.a+this.b)/2;this.hub[k]=this.hubRate[k]=this.travel[k]=this.ground[k]=this.groundRate[k]=0;}}
+ reset(){this.frontRoad=this.rearRoad=this.beta=0;this.roll=this.pitch=this.heave=this.rollRate=this.pitchRate=this.heaveRate=this.frontDownforce=this.downforce=this.drag=0;for(const k of corners){this.surfaceGrip[k]=1;this.loads[k]=this.mass*9.81*(k[0]==='F'?this.b:this.a)/(this.a+this.b)/2;this.runout[k]=this.runoutRate[k]=this.hub[k]=this.hubRate[k]=this.travel[k]=this.ground[k]=this.groundRate[k]=0;}}
  step(dt:number,speed:number,ax:number,ay:number,slope:number,verticalAcceleration=0,opening=0){
  const steps=Math.ceil(dt*1200);
  for(let i=0;i<steps;i++)this.integrate(dt/steps,speed,ax,ay,slope,verticalAcceleration,opening);
@@ -49,10 +51,11 @@ export class Suspension {
  // Digressive damping: retain body control at low shaft speed while letting
  // a fast kerb strike move the wheel without an equally sharp body impulse.
  const dampingForce=(velocity:number)=>damper*velocity*(.32+.68/(1+Math.abs(velocity)/.22));
- const extra=spring*compression+dampingForce(rate)+bump+arb*(front?twistFront:twistRear)/(2*x);
+ const stop=2e6*Math.sign(compression)*Math.max(0,Math.abs(compression)-p.travel);
+ const extra=spring*compression+dampingForce(rate)+bump+stop+arb*(front?twistFront:twistRear)/(2*x);
  const base=this.mass*g*(front?this.b:this.a)/L/2;
  // Incremental tyre and suspension forces around the static equilibrium.
- const tyreForce=Math.max(-base,850000*(this.ground[key]-this.hub[key])+2400*(this.groundRate[key]-this.hubRate[key]));
+ const tyreForce=Math.max(-base,850000*(this.ground[key]-this.runout[key]-this.hub[key])+2400*(this.groundRate[key]-this.runoutRate[key]-this.hubRate[key]));
  this.hubRate[key]+=dt*((tyreForce-extra)/32-verticalAcceleration);
  this.hub[key]+=dt*this.hubRate[key];
  this.loads[key]=base+tyreForce;this.travel[key]=compression;
@@ -60,18 +63,23 @@ export class Suspension {
  vertical+=reaction;
  rollMoment+=x*reaction;pitchMoment-=z*reaction;
  }
+ // Skid blocks support the chassis only after physical road contact.
+ for(const z of [1.25,-1.25]){
+   const gap=z>0?this.frontGap:this.rearGap;
+   if(gap<0){const reaction=Math.min(60000,-gap*1.2e6+Math.max(0,-this.heaveRate+z*this.pitchRate)*6000);vertical+=reaction;pitchMoment-=z*reaction;}
+ }
  // Aero force applied at its front/rear balance; gravity along slope participates in pitch transfer.
  this.heaveRate+=dt*((vertical-this.downforce)/this.mass-verticalAcceleration);
  this.rollRate+=dt*(rollMoment+this.mass*ay*p.cgHeight)/p.rollInertia;
  this.pitchRate+=dt*(pitchMoment-this.mass*(ax+9.81*Math.sin(slope))*p.cgHeight+this.frontDownforce*this.a-(this.downforce-this.frontDownforce)*this.b)/p.pitchInertia;
  // Limit sprung-body movement to suspension travel and stop velocity into a stop.
- const rollLimit=p.travel/(Math.max(p.frontTrack,p.rearTrack)/2);
- const pitchLimit=p.travel/Math.max(this.a,this.b);
+ const rollLimit=.12/(Math.max(p.frontTrack,p.rearTrack)/2);
+ const pitchLimit=.12/Math.max(this.a,this.b);
  const limit=(value:number,maximum:number)=>Math.max(-maximum,Math.min(maximum,value));
- this.heave=limit(this.heave+dt*this.heaveRate,p.travel);
+ this.heave=limit(this.heave+dt*this.heaveRate,.12);
  this.roll=limit(this.roll+dt*this.rollRate,rollLimit);
  this.pitch=limit(this.pitch+dt*this.pitchRate,pitchLimit);
- if(this.heave*this.heaveRate>0 && Math.abs(this.heave)>=p.travel)this.heaveRate=0;
+ if(this.heave*this.heaveRate>0 && Math.abs(this.heave)>=.12)this.heaveRate=0;
  if(this.roll*this.rollRate>0 && Math.abs(this.roll)>=rollLimit)this.rollRate=0;
  if(this.pitch*this.pitchRate>0 && Math.abs(this.pitch)>=pitchLimit)this.pitchRate=0;
  }

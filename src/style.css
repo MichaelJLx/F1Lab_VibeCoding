@@ -244,3 +244,21 @@ header .brand{gap:5px;font-size:28px;letter-spacing:-1.2px;white-space:nowrap;co
 .lower-hud .telemetry-values,.lower-hud .telemetry-values *{text-shadow:0 1px 1px #10141a70;filter:none}.lower-hud .telemetry-ribbon .segments button{text-shadow:none}.telemetry-ruler{filter:none;-webkit-text-stroke:0}
 
 .recovery-notice{position:absolute;z-index:12;top:24%;left:50%;transform:translateX(-50%);padding:10px 18px;border:1px solid #ff9b4066;border-radius:24px;background:#242930cc;color:#fff5e8;font:600 14px/1.4 system-ui;backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap}.line-hint{display:block;font-size:10px;color:#76746d;line-height:1.2}
+
+/* Stable circuit-independent anchors and readable timing sheets. */
+.brand-track .track-pill{width:168px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.masthead{width:min(430px,38vw);height:190px;pointer-events:none}
+.masthead h1,.masthead h1.preview-title{font-size:clamp(30px,4.2vw,66px);line-height:1.02;max-width:100%;height:108px;overflow:hidden;overflow-wrap:anywhere}
+.masthead h1>span{font-size:11px;letter-spacing:.16em;white-space:nowrap}
+.history-dialog{background:rgba(22,27,34,.94);color:#e4e8ee;border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(12px);max-height:80vh;overflow:auto}
+.history-dialog .history-panel{background:transparent;color:#e4e8ee;position:static;box-shadow:none;border:0}
+.history-dialog .timing-heading,.history-dialog .close,.history-dialog th,.history-dialog td{color:#e4e8ee;font-variant-numeric:tabular-nums}
+.history-dialog thead{background:rgba(255,255,255,.07)}
+.history-dialog td,.history-dialog th{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.12);white-space:nowrap}
+.history-dialog .purple{color:#d2a0ff}.history-dialog .green{color:#73dfa8}.history-dialog .yellow{color:#f4d480}
+.fastest-lap{background:rgba(161,96,239,.1)}.fastest-badge{font-size:10px;margin-left:8px;border:1px solid #ad7ee7;border-radius:4px;padding:2px 4px;color:#d2a0ff}
+.history-panel .timing-footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 12px;height:auto;min-height:50px;background:transparent;border-color:#ffffff1a;font-variant-numeric:tabular-nums}
+.timing-footer>span{color:#e4e8ee;font-size:12px}
+.timing-footer small{color:#bac4d0}.timing-footer i{font-style:normal}.timing-footer b{margin-left:12px}
+.history-dialog .lap-compare{color:#cbd5e1}.history-dialog select{color:#e4e8ee;background:#303945}
+@media(max-width:760px){.brand-track .track-pill{width:105px}.history-dialog td,.history-dialog th{padding:8px 5px}.masthead{height:135px}.masthead h1,.masthead h1.preview-title{height:80px}}

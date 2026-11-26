@@ -1,9 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
-import {reviewSections} from '../motion/Cruise';
 import type {Inspector} from '../model/Inspector';
 
 export function CornerReview({engine,close}:{engine:Inspector,close:()=>void}){
  const laps=engine.cruise.reviews;
+ const reviewSections=engine.cruise.reviewSections;
  const [lap,setLap]=useState(laps.at(-1)?.lap),[section,setSection]=useState(0);
  const [index,setIndex]=useState(0),[playing,setPlaying]=useState(false);
  const canvas=useRef<HTMLCanvasElement>(null);

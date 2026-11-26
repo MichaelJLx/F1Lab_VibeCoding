@@ -7,7 +7,8 @@ import {steps,seeds,bodies,ribbonVertices} from './FlowLayout';
 import type {FlowPart,FlowState,FlowBuffers} from './FlowProtocol';
 
 // The full field and triangle clearance solve run off the rendering thread.
-export function createFlowSolver(parts:FlowPart[],sizes:number[][]){
+export function createFlowSolver(parts:FlowPart[],sizes:number[][],clearance?:Float32Array){
+ const toChassis=new T.Matrix4(),fromChassis=new T.Matrix4(),channelPoint=new T.Vector3();
  const root=new T.Group();
  const meshes=parts.map(part=>{
    const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(part.positions,3));
@@ -24,6 +25,8 @@ export function createFlowSolver(parts:FlowPart[],sizes:number[][]){
  const speeds=new Float32Array(steps+1),travel=new Float32Array(steps+1);
  return (state:FlowState,buffers:FlowBuffers)=>{
    const {speed,opening,beta,frontGap,rearGap,steer}=state;
+   if(state.toChassis)toChassis.fromArray(state.toChassis);else toChassis.identity();
+   fromChassis.copy(toChassis).invert();
    for(let i=0;i<4;i++){poses[i].fromArray(state.poses[i]);axes[i].fromArray(state.axes[i]);}
    meshes.forEach((mesh,i)=>mesh.matrix.fromArray(state.matrices[i]));boundary.sync(root);
    const aero=platformForces(speed,opening,frontGap,rearGap,beta);
@@ -181,9 +184,41 @@ export function createFlowSolver(parts:FlowPart[],sizes:number[][]){
    }
    let index=0;
    for(const [x,y,inlet] of seeds){
+     const underfloor=y<.1;
      const step=(inlet+4.55)/steps;
+     if(underfloor){
+       // A separate channel field: external tyre/body exclusion must never push
+       // Venturi flow outside the floor. Sample the actual underside silhouette.
+       let distance=0;
+       for(let i=0;i<=steps;i++){
+         const z=inlet-i*step;
+         const diffuser=T.MathUtils.smoothstep(-z,1.4,2.7);
+         const wake=T.MathUtils.smoothstep(-z,2.8,4.55);
+         channelPoint.set(x,.04,z).applyMatrix4(toChassis);
+         const row=Math.max(0,Math.min(159,Math.floor((channelPoint.z+3)/6*160)));
+         const lo=clearance?clearance[row*64*4+2]:-.7,hi=clearance?clearance[row*64*4+3]:.7;
+         const side=x<0?-1:1,edge=side<0?-lo:hi;
+         const shoulder=1-.24*Math.exp(-(((Math.abs(z)-1.69)/.38)**2));
+         const width=Math.max(.15,Math.min(.70,edge-.045))*shoulder;
+         const fraction=Math.min(.94,Math.abs(x)/.85);
+         const channelX=side*(.14+fraction*Math.max(0,width-.14));
+         const enter=T.MathUtils.smootherstep(inlet-z,.4,1.5);
+         channelPoint.x=T.MathUtils.lerp(x,channelX,enter);
+         const col=Math.max(0,Math.min(63,Math.floor((channelPoint.x+1.2)/2.4*64)));
+         const base=4*(row*64+col),bottom=clearance?.[base],top=clearance?.[base+1];
+         let ceiling=T.MathUtils.lerp(frontGap,rearGap,T.MathUtils.smoothstep(-z,-1.4,1.4))+.12*diffuser;
+         if(bottom!==undefined && top!==undefined && bottom<=top){channelPoint.y=bottom-.006;ceiling=channelPoint.applyMatrix4(fromChassis).y;}
+         else channelPoint.applyMatrix4(fromChassis);
+         const gap=Math.max(.012,ceiling);
+         p.set(channelPoint.x,.011+(gap-.011)*(.42+.25*diffuser),z);
+         p.x+=side*.12*wake-incident*.1*wake;p.y+=wake*(.10+.045*Math.sin(z*2+side))*(1-.5*opening);
+         path[i].copy(p);speeds[i]=1+.65*Math.exp(-(((z+.2)/1.3)**2))+.18*diffuser-.35*wake;
+         travel[i]=distance;distance+=step/speeds[i];
+       }
+     }
+
      p.set(x,y,inlet);let upstreamMetres=0;previousVelocity.set(-incident,0,-1).normalize();
-     for(let i=0;i<=steps;i++){
+     if(!underfloor)for(let i=0;i<=steps;i++){
        project(p);path[i].copy(p);field(p);
        speeds[i]=axialRatio*velocity.length();travel[i]=upstreamMetres;
        mid.copy(p).addScaledVector(velocity,step*.5);field(mid);
@@ -198,11 +233,11 @@ export function createFlowSolver(parts:FlowPart[],sizes:number[][]){
      }
      // Cubic B-spline smoothing, followed by another clearance projection.
      // Geometry tangents below are derived from this final path, not the raw field.
-     for(let pass=0;pass<24;pass++){
+     for(let pass=0;pass<(underfloor?6:12);pass++){
        smooth[0].copy(path[0]);smooth[steps].copy(path[steps]);
        for(let i=1;i<steps;i++){
          smooth[i].copy(path[i-1]).addScaledVector(path[i],4).add(path[i+1]).multiplyScalar(1/6);
-         project(smooth[i]);
+         if(!underfloor)project(smooth[i]);
        }
        for(let i=0;i<=steps;i++)path[i].copy(smooth[i]);
      }
@@ -214,7 +249,7 @@ export function createFlowSolver(parts:FlowPart[],sizes:number[][]){
        // Limit cross-section width to local bend radius: adjacent strips cannot
        // fold across the inside of a tight turn even near a sharp wing edge.
        const span=Math.max(.002,Math.min(incoming.length()||.1,outgoing.length()||.1));
-       const width=Math.min(.082+.045*T.MathUtils.smoothstep(i/steps,0,1),.28*span/Math.max(.008,turn));
+       const width=underfloor?.023:Math.min(.082+.045*T.MathUtils.smoothstep(i/steps,0,1),.28*span/Math.max(.008,turn));
        for(let j=0;j<ribbonVertices;j++){
          frame.normal.toArray(buffers.frames,index*4);buffers.frames[index*4+3]=width;
          const k=index*3;buffers.transit[index]=travel[i];buffers.ratios[index]=speeds[i];

@@ -72,7 +72,7 @@ for(const key of ['FL','FR','RL','RR'] as const){
  hub.y=0;car.contactCenters[key]=hub;
 }
 // Check the rendered divider against the full car envelope through pit exit.
-const divider=track.markings.getObjectByName('Spa pit divider')!;
+const divider=track.markings.getObjectByName('Pit divider')!;
 const uprights=divider.children.find(part=>part instanceof InstancedMesh) as InstancedMesh;
 const posts=Array.from({length:uprights.count},(_,i)=>{
  const m=new Matrix4();uprights.getMatrixAt(i,m);return new Vector3().setFromMatrixPosition(m);

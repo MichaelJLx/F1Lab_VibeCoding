@@ -13,10 +13,11 @@ type Point=Record<Channel|'d'|'station',number>;
 const colors=['#ffad4c','#72ca9c','#eb786b','#8ec7e8','#c6a2e8','#bfc9d0'];
 const windowM=400;
 
-export function TelemetryPlot({data}:{data:CruiseSnapshot}){
+export function TelemetryPlot({data,circuitId}:{data:CruiseSnapshot;circuitId?:string}){
  const [samples,setSamples]=useState<Point[]>([]);
  const laps=useRef({lap:0,previous:new Map<number,Point>(),current:new Map<number,Point>()});
  const [view,setView]=useState<View>('驾驶'),[collapsed,setCollapsed]=useState(false);
+ useEffect(()=>{setSamples([]);laps.current={lap:0,previous:new Map(),current:new Map()};},[circuitId]);
  useEffect(()=>{
    if(data.status==='idle'){laps.current.current.clear();laps.current.previous.clear();laps.current.lap=0;setSamples(old=>old.length?[]:old);return;}
    if(data.status!=='running')return;

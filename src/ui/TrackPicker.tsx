@@ -28,13 +28,13 @@ export function TrackPicker({active,onChoose,onClose}: {active:string,onChoose:(
       <div className="track-grid">
         {circuits.map((c, index) => <button key={c.id} className={`circuit-card ${preview === c.id ? 'previewed' : ''}`}
           aria-pressed={preview === c.id} onClick={() => setPreview(c.id)}>
-          <div className="circuit-meta"><span>{c.region}</span><small>{c.id===active ? '当前赛道' : c.available?'极限推进':'赛道巡览'}</small></div>
+          <div className="circuit-meta"><span>{c.region}</span><small>{c.id===active ? '当前赛道' : '极限推进'}</small></div>
           <svg viewBox="0 0 240 132" role="img" aria-label={`${c.name} · 布局`}><path d={c.path}/></svg>
           <div className="circuit-name"><span className="circuit-number">{String(index + 1).padStart(2, '0')}</span><div><b>{c.name}</b><small>{c.english}</small></div></div>
         </button>)}
       </div>
       <div className="track-picker-bottom">
-        <div aria-live="polite"><b>{selected.name}</b><p>{selected.available ? '极限推进' : '浏览赛道与赛车'}</p></div>
+        <div aria-live="polite"><b>{selected.name}</b><p>{'极限推进'}</p></div>
         <button className="run-button" onClick={()=>onChoose(selected.id)}>{selected.id===active?'返回赛道':'进入赛道'}</button>
       </div>
       <div className="track-attribution">赛道轮廓 · <a href="https://github.com/bacinger/f1-circuits" target="_blank" rel="noreferrer">Tomislav Bacinger / f1-circuits · MIT</a></div>

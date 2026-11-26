@@ -2,8 +2,8 @@ import {pressureMap} from './PressureMap';
 import {createAirflow} from './Airflow';
 import {bindSuspensionLinks} from './SuspensionLinks';
 import {staticDrop,rootClearance} from '../motion/AeroPlatform';
+import {TyreSmoke} from './TyreSmoke';
 import {SkidSparks} from './SkidSparks';
-import {turnStations} from '../tracks/SpaMarkers';
 import {shiftRpm} from '../motion/Gearbox';
 import {mirrorGlare} from './MirrorGlare';
 import {tyreView} from './TyreView';
@@ -26,7 +26,7 @@ export const names:Record<string,string>={body:'车身 / 侧箱',floor:'底板 /
 const cameraStations=[120,260,620,940,1140,1490,1860,2230,2395,2540,2860,3100,3370,3630,3800,4110,4340,4550,4760,5050,5420,5740,5990,6290,6570,6685,6860];
 export class Inspector {
  labelsVisible=false;
- setTrackSigns(on:boolean){this.track.signs.visible=on;if(this.preview)this.preview.track.signs.visible=on;}
+ setTrackSigns(on:boolean){this.track.signs.visible=on;}
  private viewportWidth=1;private viewportHeight=1;private projectionMode='';
  private cockpitProjection(){
    const cockpit=this.mode==='helmet'||this.mode==='onboard';
@@ -59,6 +59,7 @@ export class Inspector {
    if(this.flow)this.flow.setVisible(enabled);
  }
  private sparks=new SkidSparks(this.displayScale);
+ private tyreSmoke=new TyreSmoke(this.displayScale);
  tireEffects:Record<string,ReturnType<typeof wheelEffects>>={};
  shadow=contactShadow();frontFlap?:T.Group;rearFlap?:T.Group;wingTravel=0;gridWingPreview=false;
  steeringWheel?:T.Group;
@@ -136,7 +137,7 @@ export class Inspector {
  this.resize=new ResizeObserver(()=>this.fit());this.resize.observe(host);this.fit();
  this.renderer.domElement.addEventListener('pointerdown',this.pointerDown);this.renderer.domElement.addEventListener('pointerup',this.pointerUp);this.renderer.domElement.addEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.addEventListener('pointercancel',this.roofCancel);this.renderer.domElement.addEventListener('pointermove',this.roofMove);
  this.track.group.scale.setScalar(this.displayScale);this.line.group.scale.setScalar(this.displayScale);
- this.scene.add(this.track.group,this.line.group,this.sparks.trails);
+ this.scene.add(this.track.group,this.line.group,this.sparks.trails,this.tyreSmoke.mesh);
  new GLTFLoader().load('/models/rb22.glb',g=>{if(this.destroyed){this.disposeObject(g.scene);return;}this.car=g.scene;this.scene.add(this.car);this.car.scale.setScalar(this.displayScale);
  // Preserve source textures and use the device's full oblique texture filtering.
  const anisotropy=this.renderer.capabilities.getMaxAnisotropy();
@@ -167,7 +168,7 @@ export class Inspector {
  this.onboardMount.rotation.set(-8*T.MathUtils.DEG2RAD,Math.PI,0,'YXZ');
  this.chassis.add(this.onboardMount);
  for(const [key,w] of Object.entries(this.wheels)){
-   this.tyreViews[key as Corner]=tyreView(w.spin,w.radius);
+   this.tyreViews[key as Corner]=tyreView(w.spin,w.radius,w.axis);
    this.tireEffects[key]=wheelEffects(w.pivot,w.spin,Math.sign(w.base.x),w.radius);
    const center=w.base.clone();center.y=0;
    this.cruise.contactCenters[key as keyof typeof this.wheels & ('FL'|'FR'|'RL'|'RR')]=center;
@@ -297,34 +298,24 @@ export class Inspector {
  this.placeCar();this.onReady(Object.keys(names));this.view('hero');},undefined,()=>this.onError('赛车暂时无法载入，请刷新页面重试。'));
  this.tick();
  }
- private parkedSession?:Cruise;
- preview?:ReturnType<typeof createStaticCircuit>;
  switchCircuit(id:string){
-   const next=id==='be-1925'?undefined:createStaticCircuit(id);
-   if(this.preview){
-     this.scene.remove(this.preview.track.group);
-     this.preview.track.dispose();
-   }
-   this.preview=next;
-   this.track.group.visible=!next;this.line.group.visible=!next;
-   if(next){
-     next.track.group.scale.setScalar(this.displayScale);
-     this.scene.add(next.track.group);
-   }
-   if(next && !this.parkedSession){
-     if(this.cruise.status==='running')this.cruise.toggle();
-     this.parkedSession=this.cruise;
-     this.cruise=new Cruise(this.track,this.line);
-   }else if(!next && this.parkedSession){
-     this.cruise=this.parkedSession;this.parkedSession=undefined;
-     this.cruise.showPlan();
-   }
-   this.free.keys.clear();this.select(null);this.spinning=false;this.exploded=0;
-   this.gridWingPreview=false;this.placeCar();this.onCruise(this.cruise.snapshot());
-   this.view('track');
+ this.sparks.clear();this.tyreSmoke.clear();
+   const next=id==='be-1925'?new SpaTrack():createStaticCircuit(id).track;
+   const previous=this.cruise,contacts=previous.contactCenters;
+   const visible=this.line.mesh.visible,candidates=this.line.alternatives.visible,signs=this.track.signs.visible;
+   this.scene.remove(this.track.group,this.line.group);previous.dispose();this.line.dispose();this.track.dispose();
+   this.track=next;this.line=new RacingLine(next);this.cruise=new Cruise(next,this.line);
+   this.cruise.contactCenters=contacts;this.cruise.lapCount=previous.lapCount;
+   this.cruise.energyEnabled=previous.energyEnabled;this.cruise.wearEnabled=previous.wearEnabled;
+   this.cruise.limitKmh=previous.limitKmh;this.cruise.pace=previous.pace;
+   this.cruise.planWorker=new Worker(new URL('../motion/lap.worker.ts',import.meta.url),{type:'module'});
+   this.track.group.scale.setScalar(this.displayScale);this.line.group.scale.setScalar(this.displayScale);
+   this.track.signs.visible=signs;this.line.setVisible(visible,candidates);this.scene.add(this.track.group,this.line.group);
+   this.followHeading=undefined;this.free.keys.clear();this.select(null);this.spinning=false;this.exploded=0;
+   this.gridWingPreview=false;this.placeCar();this.onCruise(this.cruise.snapshot());this.view('track');
  }
  fit(){const {width,height}=this.host.getBoundingClientRect();if(!width||!height)return;this.viewportWidth=width;this.viewportHeight=height;this.camera.aspect=width/height;this.cockpitProjection();this.camera.updateProjectionMatrix();if(this.renderer.getPixelRatio()!==devicePixelRatio)this.renderer.setPixelRatio(devicePixelRatio);this.renderer.setSize(width,height);}
- placeCar(dt=0){if(!this.car)return;const p=this.preview?.gridPose??this.cruise.pose();this.car.position.copy(p.position).multiplyScalar(this.displayScale);this.car.position.y+=rootClearance*this.displayScale;this.car.quaternion.copy(p.quaternion);this.car.scale.setScalar(this.displayScale);const suspension=this.cruise.dynamics.suspension;this.chassis.position.y=.30-staticDrop+suspension.heave;this.chassis.rotation.set(suspension.pitch,0,suspension.roll,'YXZ');}
+ placeCar(dt=0){if(!this.car)return;const p=this.cruise.pose();this.car.position.copy(p.position).multiplyScalar(this.displayScale);this.car.position.y+=rootClearance*this.displayScale;this.car.quaternion.copy(p.quaternion);this.car.scale.setScalar(this.displayScale);const suspension=this.cruise.dynamics.suspension;this.chassis.position.y=.30-staticDrop+suspension.heave;this.chassis.rotation.set(suspension.pitch,0,suspension.roll,'YXZ');}
  followHeading?:T.Quaternion; heroFollow=true; followDistance=0;
  view(v:View){
  this.endRoofDrag();
@@ -347,15 +338,15 @@ export class Inspector {
    this.mode='free';this.controls.enabled=false;this.free.setEnabled(true);return;
  }
  this.free.setEnabled(false);this.controls.enabled=true;
- if(v==='track'){this.mode='overview';const pose=(this.preview?.track??this.track).overview();this.targetPos=pose.position.multiplyScalar(this.displayScale);this.targetLook=pose.target.multiplyScalar(this.displayScale);return;}
+ if(v==='track'){this.mode='overview';const pose=this.track.overview();this.targetPos=pose.position.multiplyScalar(this.displayScale);this.targetLook=pose.target.multiplyScalar(this.displayScale);return;}
  this.mode='follow';const presets:Record<Exclude<View,'trackside'|'track'|'free'|'onboard'|'helmet'>,number[]>={hero:this.camera.aspect>1.2?[5.6,2.4,6]:[8,4,10],bottom:[5,-3.5,5],top:[0,8,.01],side:[8,1,.1],front:[0,1.2,9],rear:[0,1.5,-9]};
  const carPos=this.car?.position??new T.Vector3(),q=this.car?.quaternion??new T.Quaternion(),s=Math.sqrt(this.displayScale);
- if(v==='hero' && !this.preview && this.cruise.status==='idle')presets.hero[0]*=-1;
+ if(v==='hero' && this.cruise.status==='idle')presets.hero[0]*=-1;
  this.targetPos=new T.Vector3().fromArray(presets[v]).multiplyScalar(s).applyQuaternion(q).add(carPos);this.targetLook=new T.Vector3(0,v==='bottom'?.15:.6,0).multiplyScalar(this.displayScale).applyQuaternion(q).add(carPos);
  }
- exploreCorner(index:number){const station=turnStations[index];if(station===undefined)return;const pose=this.track.pose(station);this.targetPos=undefined;this.targetLook=undefined;this.camera.position.copy(pose.position.multiplyScalar(this.displayScale)).add(new T.Vector3(16,15,-25).applyQuaternion(pose.quaternion));this.camera.lookAt(pose.position);this.view('free');}
- toggleCruise(){if(this.preview||!this.car)return;this.gridWingPreview=false;this.cruise.toggle();this.spinning=false;this.exploded=0;this.onCruise(this.cruise.snapshot());}
- resetGrid(){this.gridWingPreview=false;this.steering=0;this.wingTravel=0;this.cruise.reset();this.spinning=false;this.exploded=0;for(const w of Object.values(this.wheels)){w.angle=0;w.steer=0;w.spin.quaternion.identity();w.pivot.rotation.y=0;}this.placeCar();this.view('hero');this.onCruise(this.cruise.snapshot());}
+ exploreCorner(index:number){const station=this.track.profile.turns[index];if(station===undefined)return;const pose=this.track.pose(station);this.targetPos=undefined;this.targetLook=undefined;this.camera.position.copy(pose.position.multiplyScalar(this.displayScale)).add(new T.Vector3(16,15,-25).applyQuaternion(pose.quaternion));this.camera.lookAt(pose.position);this.view('free');}
+ toggleCruise(){if(!this.car)return;this.gridWingPreview=false;this.cruise.toggle();this.spinning=false;this.exploded=0;this.onCruise(this.cruise.snapshot());}
+ resetGrid(){this.sparks.clear();this.tyreSmoke.clear();this.gridWingPreview=false;this.steering=0;this.wingTravel=0;this.cruise.reset();this.spinning=false;this.exploded=0;for(const w of Object.values(this.wheels)){w.angle=0;w.steer=0;w.spin.quaternion.identity();w.pivot.rotation.y=0;}this.placeCar();this.view('hero');this.onCruise(this.cruise.snapshot());}
  setWire(v:boolean){this.wire=v;this.car?.traverse(o=>{if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m instanceof T.MeshStandardMaterial)m.wireframe=v;});}
  select(key:string|null){this.selected=key;this.onSelect(key);}
  pointerDown=(e:PointerEvent)=>{this.down=[e.clientX,e.clientY];
@@ -387,7 +378,7 @@ export class Inspector {
  for(const lens of this.lampMaterials)lens.emissiveIntensity=pulse;
  this.tailPulse.value=pulse;
  const oldPos=this.car?this.scratch.oldPos.copy(this.car.position):undefined,oldQ=this.car?this.scratch.oldQ.copy(this.car.quaternion):undefined;const ds=this.car?this.cruise.tick(dt):0;this.placeCar(dt);
- if(this.car)this.sparks.update(dt,this.cruise,this.chassis,this.displayScale,!!this.preview);
+ if(this.car)this.sparks.update(dt,this.cruise,this.chassis,this.displayScale,false);
  if(this.car&&oldPos&&oldQ&&(ds>0||this.cruise.recovering)&&this.mode==='follow'){
  let rotation=this.scratch.rotation.copy(this.car.quaternion).multiply(this.scratch.inverse.copy(oldQ).invert());
  if(this.heroFollow){
@@ -409,7 +400,7 @@ export class Inspector {
  if(this.mode==='trackside' && this.car){
    const station=this.track.wrap(this.cruise.s);
    // A bank of fixed cameras. Each holds its position until the next coverage sector.
-   const anchor=cameraStations.reduce((nearest,candidate)=>{
+   const anchor=(this.track.id==='spa'?cameraStations:this.track.profile.turns).reduce((nearest,candidate)=>{
      const distance=(s:number)=>Math.abs(this.track.wrap(s-station+this.track.length/2)-this.track.length/2);
      return distance(candidate)<distance(nearest)?candidate:nearest;
    });
@@ -429,12 +420,12 @@ export class Inspector {
      T.MathUtils.clamp(-physics.ay*.0009,-.055,.055));
    if(this.cruise.status==='running')this.headTime+=dt;
    this.head.lerp(target,1-Math.exp(-dt/ .16));
-   const vibration=Math.min(.006,Math.abs(physics.suspension.heaveRate)*.008)*Math.sin(this.headTime*59);
+   const vibration=T.MathUtils.clamp(physics.suspension.heaveRate*.002,-.003,.003)+physics.flatSpotVibration;
    this.camera.position.set(0,.48+vibration,.20+this.head.x*.12).applyMatrix4(this.chassis.matrixWorld);
    this.chassis.getWorldQuaternion(this.camera.quaternion);
    this.camera.quaternion.multiply(this.scratch.headRotation.setFromEuler(this.scratch.euler.set(-.08-this.head.x,Math.PI+this.head.y,this.head.z,'YXZ')));
  }
- else if(this.mode==='onboard'){this.onboardMount.getWorldPosition(this.camera.position);this.onboardMount.getWorldQuaternion(this.camera.quaternion);}
+ else if(this.mode==='onboard'){this.onboardMount.getWorldPosition(this.camera.position);this.onboardMount.getWorldQuaternion(this.camera.quaternion);this.camera.position.y+=T.MathUtils.clamp(this.cruise.dynamics.suspension.heaveRate*.0015,-.002,.002)+this.cruise.dynamics.flatSpotVibration*.7;}
  else if(this.mode==='free')this.free.tick(dt);else{this.controls.autoRotate=this.rotate&&this.mode==='follow';this.controls.autoRotateSpeed=.65;this.controls.update(dt);}
  const moving=this.cruise.status!=='idle';
 
@@ -444,11 +435,11 @@ export class Inspector {
  let hubTravel=suspension.hub[key as Corner];
  // The rendered rigid slick cannot compress like the tyre spring. Keep its contact
  // patch on the measured pavement while still allowing positive wheel travel.
- if(!this.preview && this.car && this.track.pit){
+ if(this.car && this.track.pit){
    const patch=this.scratch.patch.set(w.base.x,0,w.base.z).applyQuaternion(this.car.quaternion)
      .addScaledVector(this.car.position,1/this.displayScale);
    const surface=this.track.pit.heightAt(patch);
-   if(surface!==undefined)hubTravel=Math.max(hubTravel,surface-patch.y);
+   if(surface!==undefined)hubTravel=Math.max(hubTravel,surface-patch.y-this.cruise.dynamics.tyres[key as Corner].runout);
  }
  w.pivot.position.y+=hubTravel;w.pivot.position.x+=Math.sign(w.base.x)*(moving?0:this.exploded)*.65;
  const target=key.startsWith('F')?this.cruise.dynamics.wheelAngle(w.base.x,moving?this.cruise.dynamics.steer:this.steering):0;
@@ -458,6 +449,7 @@ export class Inspector {
  w.angle=moving?tyre.angle:(w.angle+(this.spinning?dt*2:0))%(2*Math.PI);w.spin.quaternion.setFromAxisAngle(w.axis,w.angle);
  }
  this.updateLinks?.();
+ if(this.car)this.tyreSmoke.update(dt,this.cruise,this.wheels,this.car,this.displayScale);
  this.updateWheelLCD();
  if(this.steeringWheel && this.wheels.FL && this.wheels.FR){
    // Symmetric rack angle from the two displayed Ackermann angles.
@@ -500,7 +492,7 @@ export class Inspector {
    const platform=this.cruise.dynamics.suspension;
    this.pressure?.update(blend,platform.beta,this.cruise.speed,platform.frontGap,platform.rearGap);
  }
- (this.preview?.track??this.track).setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
+ this.track.setStyle(this.roadStyle,under);this.mirrorFlash?.update(this.camera,pulse);this.renderer.render(this.scene,this.camera);
  const metrics=this.metrics;metrics.frames++;metrics.elapsed+=dt;metrics.cpu+=performance.now()-now;
  if(now-metrics.last>1000){
    const canvas=this.renderer.domElement;
@@ -546,5 +538,5 @@ export class Inspector {
    this.updateWheelLCD();renderer.render(this.scene,this.camera);
  }
  disposeObject(o:T.Object3D){const textures=new Set<T.Texture>();o.traverse(n=>{if(n instanceof T.Mesh||n instanceof T.Line||n instanceof T.Points){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material]){for(const value of Object.values(m))if(value instanceof T.Texture)textures.add(value);m.dispose();}}});for(const t of textures)t.dispose();}
- dispose(){this.flow?.dispose();this.pressure?.dispose();(this.parkedSession??this.cruise).planWorker?.terminate();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.flow?.dispose();this.pressure?.dispose();this.cruise.dispose();this.mirrorFlash?.dispose();Object.values(this.tyreViews).forEach(v=>v.dispose());this.wheelLCD?.dispose();this.destroyed=true;cancelAnimationFrame(this.frame);this.resize.disconnect();this.controls.dispose();this.free.dispose();this.renderer.domElement.removeEventListener('pointerdown',this.pointerDown);this.renderer.domElement.removeEventListener('pointerup',this.pointerUp);this.renderer.domElement.removeEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.removeEventListener('pointercancel',this.roofCancel);this.renderer.domElement.removeEventListener('pointermove',this.roofMove);this.disposeObject(this.scene);this.env.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
