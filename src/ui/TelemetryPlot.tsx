@@ -25,10 +25,11 @@ export function TelemetryPlot({data}:{data:CruiseSnapshot}){
      wing:100*(data.platform?.wing??0),frontGap:1000*(data.platform?.frontGap??0),rearGap:1000*(data.platform?.rearGap??0),
      front:(data.aero?.front??0)/1000,rear:(data.aero?.rear??0)/1000,drag:(data.aero?.drag??0)/1000,
      FL:load('FL'),FR:load('FR'),RL:load('RL'),RR:load('RR')};
-   if(data.phase==='timed' && data.lap){
+   if(data.invalidLap)laps.current.current.clear();
+   if(data.phase==='timed' && !data.invalidLap && data.lap){
      const record=laps.current;
-     if(record.lap!==data.lap){
-       record.previous=record.current;record.current=new Map();record.lap=data.lap;
+     if(record.lap!==(data.attempt??data.lap)){
+       if(record.current.size)record.previous=record.current;record.current=new Map();record.lap=data.attempt??data.lap;
      }
      record.current.set(Math.floor(point.station/10),point);
    }
@@ -52,7 +53,7 @@ export function TelemetryPlot({data}:{data:CruiseSnapshot}){
  {channels.map(([key,name,unit,max],i)=>{
  const points=samples.map(p=>`${x(p)},${y(p[key],max)}`).join(' ')||'8,116 592,116';
  let comparison='',continuous=false;
- if(data.phase==='timed')for(const sample of samples){const prior=laps.current.previous.get(Math.floor(sample.station/10));if(!prior){continuous=false;continue;}comparison+=(continuous?'L':'M')+x(sample)+','+y(prior[key],max);continuous=true;}
+ if(data.phase==='timed' && !data.invalidLap)for(const sample of samples){const prior=laps.current.previous.get(Math.floor(sample.station/10));if(!prior){continuous=false;continue;}comparison+=(continuous?'L':'M')+x(sample)+','+y(prior[key],max);continuous=true;}
  return <g key={key}><title>{name} · 0–{max} {unit}</title><defs><linearGradient id={'ribbon-fill-'+key} x1="0" y1="0" x2="0" y2="1"><stop stopColor={colors[i]} stopOpacity=".13"/><stop offset="1" stopColor={colors[i]} stopOpacity="0"/></linearGradient></defs>
  <polygon points={`${points} 592,116 ${samples.length?x(samples[0]):8},116`} fill={'url(#ribbon-fill-'+key+')'}/>
  <path d={comparison} fill="none" stroke={colors[i]} opacity=".3" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/>

@@ -29,11 +29,27 @@ function sectorColor(ms:number,personal:number,session:number){
  if(ms<personal)return 'green' as const;
  return 'yellow' as const;
 }
-export type CruiseSnapshot={flowRatio?:number,liveDelta?:number,report?:CornerReport,power?:{electric:number,wheels:number,energy:number},platform?:{wing:number,frontGap:number,rearGap:number},aero?:{front:number,rear:number,drag:number},tyres?:Record<string,{pressure:number,contact:number,wear:number,degradation:number,locked:boolean}>,station?:number,gear?:number,rpm?:number,throttle?:number,brake?:number,finishHold?:boolean,phase?:"out"|"timed"|"in",status:CruiseStatus,speed:number,progress:number,elapsed:number,distance:number,steer?:number,lateralG?:number,slip?:number,roll?:number,pitch?:number,heave?:number,lap?:number,lastLap?:number,bestLap?:number,timingRows?:LapTiming[],splits?:number[],aeroZone?:number,loads?:Record<string,number>};
+export type CruiseSnapshot={invalidLap?:boolean,recovering?:boolean,attempt?:number,validLaps?:number,candidatesReady?:boolean,flowRatio?:number,liveDelta?:number,report?:CornerReport,power?:{electric:number,wheels:number,energy:number},platform?:{wing:number,frontGap:number,rearGap:number},aero?:{front:number,rear:number,drag:number},tyres?:Record<string,{pressure:number,contact:number,wear:number,degradation:number,locked:boolean}>,station?:number,gear?:number,rpm?:number,throttle?:number,brake?:number,finishHold?:boolean,phase?:"out"|"timed"|"in",status:CruiseStatus,speed:number,progress:number,elapsed:number,distance:number,steer?:number,lateralG?:number,slip?:number,roll?:number,pitch?:number,heave?:number,lap?:number,lastLap?:number,bestLap?:number,timingRows?:LapTiming[],splits?:number[],aeroZone?:number,loads?:Record<string,number>};
 // Split linked corners halfway between their mapped apexes. Each window includes entry and exit.
 const ends=turnStations.map((s,i)=>(s+(turnStations[i+1]??Infinity))/2);
 const region=(s:number)=>ends.findIndex(end=>s<end);
 const blank=()=>turnStations.map(()=>0);
+// Blend neighbouring strategies across the inter-corner boundary, including the
+// final fast-line mix. A discrete weight here creates an artificial chicane.
+function lineWeightAt(station:number,weights:number[]){
+ const j=region(station),start=ends[j-1]??0,end=ends[j];
+ const before=j>0?Math.min(70,(turnStations[j]-start)*.65):0;
+ const after=j<weights.length-1?Math.min(70,(end-turnStations[j])*.65):0;
+ if(before && station<start+before){
+   const span=Math.min(before,(start-turnStations[j-1])*.65);
+   return T.MathUtils.lerp(weights[j-1],weights[j],T.MathUtils.smootherstep(station,start-span,start+span));
+ }
+ if(after && station>end-after){
+   const span=Math.min(after,(turnStations[j+1]-end)*.65);
+   return T.MathUtils.lerp(weights[j],weights[j+1],T.MathUtils.smootherstep(station,end-span,end+span));
+ }
+ return weights[j];
+}
 // Start each comparison upstream of braking and finish on the exit straight.
 export const trials=[
  {turn:0,last:0,start:35,end:600},
@@ -58,8 +74,8 @@ function referenceSpeed(station:number){
  return T.MathUtils.lerp(a.speed,b.speed,wrap(station-a.s)/Math.max(.01,wrap(b.s-a.s)));
 }
 const fastSections=spaData.nodes.map(n=>T.MathUtils.smoothstep(referenceSpeed(n.s),52,82));
-function driveAcceleration(v:number,opening:number){
- return Math.min(14,(plannedForce(v)-aeroForces(v,opening).drag)/lateralParameters.mass);
+function driveAcceleration(v:number,opening:number,deployment=true){
+ return Math.min(14,(plannedForce(v,deployment)-aeroForces(v,opening).drag)/lateralParameters.mass);
 }
 /** Route-constrained automatic tour. Speed/steering/suspension respond continuously; not free driving. */
 export class Cruise {
@@ -67,7 +83,14 @@ export class Cruise {
  gearbox=new Gearbox(); finishHold=0; exits=blank();
  regionHistory:RegionResult[][]=[];
  splits:number[]=[];
- lap=1; private count=1; history:number[][]=[]; private weights=blank(); private regionTimes=blank();
+ lap=1; attempt=0;invalidLap=false;
+ private recoveryHold=0;
+ private rejoin?:{start:number,end:number};
+ private recoveredToMain=false;
+ private spinTime=0;
+ get flying(){return this.timed && !this.invalidLap && this.recoveryHold<=0;}
+ get recovering(){return this.recoveryHold>0;}
+ private count=1; history:number[][]=[]; private weights=blank(); private regionTimes=blank();
  private entry=blank();private apex=blank();private exitOffset=blank();
  private cut=blank();
  private late=blank();
@@ -84,12 +107,26 @@ export class Cruise {
  private alternatives:number[]=[];
  private memory=new DriverMemory();
  private incidents=blank();
+ private incident?:{kind:string,time:number,station:number,speed:number,recorded:boolean};
+ private observeIncident(kind:string|undefined,h:number){
+   // A single physics sample (kerb unload or the natural yaw reversal between
+   // linked bends) must not become a permanent braking point on later laps.
+   if(!kind || this.trial || !this.flying || Number.isFinite(this.limitKmh) || this.pace<1){this.incident=undefined;return;}
+   if(this.incident?.kind!==kind)this.incident={kind,time:0,station:this.track.wrap(this.s),speed:this.speed,recorded:false};
+   const event=this.incident;event.time+=h;
+   if(event.time<.18 || event.recorded)return;
+   event.recorded=true;
+   const corner=region(event.station),bin=Math.floor(event.station/50);
+   this.memory.corners[corner].lastError=kind;this.incidents[corner]=1;
+   if(kind==='oversteer')this.slidesThisLap.add(corner);
+   if(!this.slideBins.has(bin)){this.slideBins.add(bin);this.memory.recordSlide(event.station,event.speed);}
+ }
  private slidesThisLap=new Set<number>();
  report?:CornerReport;
  private bestStamps:number[]=[];
  private stamps:number[]=[0];
  private liveDelta(){
-   if(!this.timed||!this.bestStamps.length)return;
+   if(!this.flying||!this.bestStamps.length)return;
    const t=this.distance/10,i=Math.floor(t),a=this.bestStamps[i],b=this.bestStamps[i+1];
    if(a!==undefined && b!==undefined)return this.elapsed-T.MathUtils.lerp(a,b,t-i);
  }
@@ -199,7 +236,7 @@ export class Cruise {
      // Change both apexes coherently; keep alternatives inside the same track corridor.
      const compromise=(weights[9]+weights[10])*.5;
      const w=T.MathUtils.lerp(T.MathUtils.lerp((.56+.42*pace)*(1-kerb*(1-pace)),.96,linked),.96-.40*compromise,pouhon);
-     const lineWeight=this.timed ? .98-.18*weights[region(s)] : w;
+     const lineWeight=this.timed ? .98-.18*lineWeightAt(s,weights) : w;
      point.lerp(this.track.point(s,fastLine[i]),lineWeight);
      if(this.timed && kerb>0){
        const side=margins[i].side;
@@ -245,8 +282,8 @@ export class Cruise {
  private requestedLap=0;
  private generation=0;
  private stageNextLap(){
-   const lap=this.lap+1;
-   if(this.requestedLap===lap || this.lastLap)return;
+   const lap=this.lap+(this.timed&&this.invalidLap?0:1);
+   if(this.requestedLap===lap || this.lastLap || this.recovering)return;
    this.requestedLap=lap;
    const observations=this.observations.map((m,j)=>{
      const copy=new Map(m);
@@ -260,7 +297,7 @@ export class Cruise {
    if(this.planWorker){
      const generation=this.generation;
      this.planWorker.onmessage=({data})=>{
-       if(data.generation===generation && this.generation===generation && data.plan.lap===this.lap+1)this.preparePlan(data.plan);
+       if(data.generation===generation && this.generation===generation && data.plan.lap===this.lap+(this.timed&&this.invalidLap?0:1))this.preparePlan(data.plan);
      };
      this.planWorker.postMessage({generation,request});
    }else{
@@ -270,7 +307,7 @@ export class Cruise {
    }
  }
  planLap(request:PlanRequest){
-   this.count=request.count;this.lap=request.lap;this.weights=request.weights;this.memory.slides=request.slides.map(mark=>({...mark}));
+   this.invalidLap=false;this.rejoin=undefined;this.recoveredToMain=false;this.recoveryHold=0;this.count=request.count;this.lap=request.lap;this.weights=request.weights;this.memory.slides=request.slides.map(mark=>({...mark}));
    this.observations=request.observations.map(entries=>new Map(entries));
    this.pickup=[...request.pickup];this.memory.corners.forEach((r,i)=>r.caution=request.caution[i]);
    this.energyOption=request.energyEnabled;this.wearOption=request.wearEnabled;this.gearbox.energy=request.energy;
@@ -293,7 +330,7 @@ export class Cruise {
    const pending=this.pendingPlan;this.pendingPlan=undefined;
    if(!pending || pending.plan.lap!==this.lap){this.setPath(this.weights);this.buildSpeedPlan();this.showPlan();return;}
    const {plan,path,geometry}=pending;
-   this.entry=plan.entry;this.apex=plan.apex;this.exitOffset=plan.exitOffset;this.line.setAlternatives(plan.alternatives);this.comparisons=plan.comparisons;this.cut=plan.cut;this.late=plan.late;this.weights=plan.weights;this.racePath=path;
+   this.entry=plan.entry;this.apex=plan.apex;this.exitOffset=plan.exitOffset;this.alternatives=plan.alternatives;this.line.setAlternatives(this.alternatives);this.comparisons=plan.comparisons;this.cut=plan.cut;this.late=plan.late;this.weights=plan.weights;this.racePath=path;
    this.speedPlan=plan.speed;this.brakingLimit=plan.braking;this.pathLengths=plan.lengths;
    this.verticalCurve=plan.vertical;this.lateralCurve=plan.lateral;
    this.line.mesh.geometry.dispose();this.line.mesh.geometry=geometry;
@@ -307,6 +344,7 @@ export class Cruise {
    for(const k of corners)probe.contactCenters[k]=new T.Vector3(
      (k[1]==='L'?1:-1)*(k[0]==='F'?.771:.733),0,k[0]==='F'?1.693:-1.693);
    this.comparisons=trials.map(()=>[]);
+   const candidateLines:number[][][]=trials.map(()=>[]);
    probe.energyOption=this.energyEnabled;probe.wearOption=this.wearEnabled;
    for(const entry of [-1,0,1])for(const apex of [-1,0,1])for(const exitOffset of [-1,0,1]){
      const cut=apex===0?0:.25,late=entry>0;
@@ -325,10 +363,12 @@ export class Cruise {
        for(let j=0;j<10;j++)probe.gearbox.update(.1,probe.speed);
        probe.pickup=[...this.pickup];probe.status='running';probe.accumulator=probe.elapsed=probe.brakeForce=probe.accelerationCommand=0;
        probe.braking=false;probe.aeroZone=probe.routeAeroZone(start);probe.previousZone=probe.aeroZone;probe.wingTravel=Number(!!probe.aeroZone);
-       if(!late)for(let s=start;s<end;s+=5){
+       const candidate:number[]=[];
+       for(let s=start;s<end;s+=5){
          const a=probe.point(s-spaData.grid.s),b=probe.point(Math.min(end,s+5)-spaData.grid.s);
-         this.alternatives.push(a.x,a.y+.035,a.z,b.x,b.y+.035,b.z);
+         candidate.push(a.x,a.y,a.z,b.x,b.y,b.z);
        }
+       candidateLines[i].push(candidate);
        let time=0,brake=0,kerb=false,valid=true;
        while(probe.s<end && time<60){
          const before=probe.s;
@@ -351,6 +391,9 @@ export class Cruise {
    }
    this.comparisons.forEach((results,i)=>{
      const best=results.filter(r=>r.valid).sort((a,b)=>a.time-b.time)[0];
+     results.forEach((result,index)=>{
+       if(result!==best)this.alternatives.push(...candidateLines[i][index]);
+     });
      if(best)for(let j=trials[i].turn;j<=trials[i].last;j++){
        this.entry[j]=best.entry;this.apex[j]=best.apex;this.exitOffset[j]=best.exitOffset;
        this.cut[j]=best.cut;this.late[j]=Number(best.late)*(1-this.memory.corners[j].caution);
@@ -406,7 +449,7 @@ export class Cruise {
    if(totals[quickest]+.002<joinedTime)this.weights=choices[quickest];
    this.setPath(this.weights);this.buildSpeedPlan();
  }
- showPlan(){this.line.update(station=>this.point(this.track.wrap(station-spaData.grid.s)),station=>this.timed || (this.lastLap?station<this.track.length-420:station>640 && station<this.track.wrap(spaData.grid.s)));this.shadeLine();}
+ showPlan(){this.line.setAlternatives(this.alternatives);this.line.update(station=>this.point(this.track.wrap(station-spaData.grid.s)),station=>this.timed || station<this.track.wrap(spaData.grid.s));this.shadeLine();}
  private shadeLine(){
    this.line.shade(station=>{
      const i=Math.floor(this.track.wrap(station-spaData.grid.s)/this.planStep);
@@ -516,9 +559,9 @@ export class Cruise {
    if(pass===0)this.brakingLimit=speeds.slice();
    if(this.lap===1)speeds[0]=0;
    for(let i=0;i<n;i++){
-     const v=speeds[i],capacity=envelope(v,openings[i],this.verticalCurve[i],driveAcceleration(v,openings[i]));
+     const v=speeds[i],capacity=envelope(v,openings[i],this.verticalCurve[i],driveAcceleration(v,openings[i],this.flying));
      const traction=remaining(capacity.rear,curvatures[i]*v*v*(1-frontShare));
-     speeds[i+1]=Math.min(speeds[i+1],Math.sqrt(v*v+2*Math.min(traction,(plannedForce(v)-capacity.drag)/mass)*this.pathLengths[i]));
+     speeds[i+1]=Math.min(speeds[i+1],Math.sqrt(v*v+2*Math.min(traction,(plannedForce(v,this.flying)-capacity.drag)/mass)*this.pathLengths[i]));
    }
    if(!this.lastLap && this.lap!==1)speeds[0]=Math.min(speeds[0],speeds[n]);
  }
@@ -545,11 +588,10 @@ export class Cruise {
  plannedSpeed(){const t=this.distance/this.planStep,i=Math.min(this.speedPlan.length-2,Math.floor(t));return T.MathUtils.lerp(this.speedPlan[i],this.speedPlan[i+1],t-i);}
 
  private routeAeroZone(station:number){
+   if(!this.flying)return 0;
    const zone=straightModeZone(this.track.wrap(station),this.track.length);
    const pit=this.pitStation(station);
    if(pit>=-420 && pit<=490)return 0;
-   // An out-lap joins A2 downstream of its activation line.
-   if(this.lap===1 && zone===2)return 0;
    return zone;
  }
  private pitStation(station:number){
@@ -560,6 +602,11 @@ export class Cruise {
  point(distance=this.distance){
    const station=spaData.grid.s+distance;
    const path=this.racePath.getPoint(this.track.wrap(station)/this.track.length);
+   if(this.rejoin && distance>=this.rejoin.start && distance<this.rejoin.end){
+     return this.track.point(station).lerp(path,T.MathUtils.smootherstep(distance,this.rejoin.start,this.rejoin.end));
+   }
+   // After a centreline reset, stay on the main road instead of crossing the pit wall.
+   if(this.recoveredToMain)return path;
    const pitStation=this.pitStation(station);
    if(this.lap===1 && pitStation>=350 && pitStation<640 && this.track.pit)return this.track.pit.exitLine(pitStation,path);
    if(pitStation>=-420 && pitStation<=490 && this.track.pit){
@@ -596,9 +643,49 @@ export class Cruise {
      suspension.groundRate[key]=change/h;
    }
  }
+ private outsideRoad(pose:ReturnType<Cruise['pose']>){
+   const section=this.track.pose(this.s),inverse=section.quaternion.clone().invert();
+   for(const key of corners){
+     const local=this.contactCenters[key]??new T.Vector3((key[1]==='L'?1:-1)*(key[0]==='F'?.771:.733),0,key[0]==='F'?1.693:-1.693);
+     const hub=local.clone().applyQuaternion(pose.quaternion).add(pose.position);
+     const across=new T.Vector3(1,0,0).applyQuaternion(pose.quaternion).multiplyScalar(key[0]==='F'?.15:.19);
+     for(const side of [-1,0,1]){
+       const contact=hub.clone().addScaledVector(across,side);
+       if(this.track.pit){if(this.track.pit.heightAt(contact)!==undefined)return false;}
+       else{
+         const relative=contact.sub(section.position).applyQuaternion(inverse);
+         const kerb=this.track.curbSide(this.track.wrap(this.s+local.z))===Math.sign(relative.x)?.8:0;
+         if(Math.abs(relative.x)<=this.track.width(this.s+local.z,relative.x)+kerb)return false;
+       }
+     }
+   }
+   return true;
+ }
+ private invalidateLap(refresh=true){
+   if(this.invalidLap)return;
+   this.invalidLap=true;this.elapsed=0;this.splits=[];this.stamps=[0];this.report=undefined;this.finishHold=0;
+   this.comparable=false;this.aeroZone=0;this.wingTravel=0;this.gearbox.deploymentAllowed=false;this.gearbox.electricKw=0;
+   this.generation++;this.requestedLap=0;this.pendingPlan?.geometry.dispose();this.pendingPlan=undefined;
+   if(refresh){this.buildSpeedPlan();this.showPlan();}
+ }
+ private recoverToTrack(){
+   this.invalidateLap(false);
+   // Never teleport across the timing line or count the relocation as distance driven.
+   this.distance+=Math.min(12,Math.max(0,(this.track.length-this.distance)*.5));
+   this.rejoin={start:this.distance,end:Math.min(this.track.length,this.distance+100)};
+   this.recoveredToMain=true;
+   const tyres={...this.dynamics.tyres},energy=this.gearbox.energy;
+   this.dynamics.reset();this.dynamics.tyres=tyres;
+   for(const key of corners){tyres[key].omega=0;tyres[key].slip=0;tyres[key].locked=false;}
+   this.gearbox=new Gearbox();this.gearbox.energy=energy;this.gearbox.consumption=this.energyEnabled;this.gearbox.deploymentAllowed=false;
+   this.speed=0;this.accelerationCommand=0;this.brakeForce=0;this.braking=false;this.incident=undefined;
+   this.aeroZone=0;this.previousZone=-1;this.wingTravel=0;this.spinTime=0;
+   this.recoveryHold=.65;this.accumulator=0;
+   this.buildSpeedPlan();this.showPlan();
+ }
  toggle(){if(this.status==='running'){this.status='paused';return;}if(this.status==='complete')this.reset();if(this.status==='idle'){this.buildSpeedPlan();this.showPlan();}this.status='running';}
- reset(){this.entry=blank();this.apex=blank();this.exitOffset=blank();this.cut=blank();this.late=blank();this.entrySpeeds.fill(0);this.comparisons=[];this.generation++;this.pendingPlan=undefined;this.requestedLap=0;this.brakeForce=0;this.braking=false;this.aeroZone=0;this.previousZone=-1;this.wingTravel=0;this.gearbox=new Gearbox();this.finishHold=0;this.stamps=[0];this.bestStamps=[];this.regionHistory=[];this.samples=reviewSections.map(()=>[]);this.reviews=[];this.report=undefined;this.nextSample=0;this.slidesThisLap.clear();this.exits=blank();this.observations.forEach(m=>m.clear());this.restoreDriver();this.traces=turnStations.map(()=>({entry:0,minimum:Infinity,brakeRelease:0,turnIn:0,pickup:0,full:0}));this.slideBins.clear();this.incidents=blank();this.regionTimes=blank();this.comparable=true;this.lap=1;this.history=[];this.setPath(this.weights);this.showPlan();this.splits=[];this.accelerationCommand=0;this.dynamics.reset();this.status='idle';this.distance=0;this.travelled=0;this.speed=0;this.elapsed=0;this.accumulator=0;}
- tick(dt:number){if(this.status==='complete'){for(let t=0;t<dt;t+=1/240)this.dynamics.suspension.step(Math.min(1/240,dt-t),0,0,0,0);return 0;}if(this.status!=='running')return 0;this.accumulator+=dt;let travelled=0;
+ reset(){this.recoveredToMain=false;this.invalidLap=false;this.attempt=0;this.recoveryHold=0;this.rejoin=undefined;this.spinTime=0;this.alternatives=[];this.incident=undefined;this.entry=blank();this.apex=blank();this.exitOffset=blank();this.cut=blank();this.late=blank();this.entrySpeeds.fill(0);this.comparisons=[];this.generation++;this.pendingPlan=undefined;this.requestedLap=0;this.brakeForce=0;this.braking=false;this.aeroZone=0;this.previousZone=-1;this.wingTravel=0;this.gearbox=new Gearbox();this.finishHold=0;this.stamps=[0];this.bestStamps=[];this.regionHistory=[];this.samples=reviewSections.map(()=>[]);this.reviews=[];this.report=undefined;this.nextSample=0;this.slidesThisLap.clear();this.exits=blank();this.observations.forEach(m=>m.clear());this.restoreDriver();this.traces=turnStations.map(()=>({entry:0,minimum:Infinity,brakeRelease:0,turnIn:0,pickup:0,full:0}));this.slideBins.clear();this.incidents=blank();this.regionTimes=blank();this.comparable=true;this.lap=1;this.history=[];this.setPath(this.weights);this.showPlan();this.splits=[];this.accelerationCommand=0;this.dynamics.reset();this.status='idle';this.distance=0;this.travelled=0;this.speed=0;this.elapsed=0;this.accumulator=0;}
+ tick(dt:number){if(this.status==='complete'){for(let t=0;t<dt;t+=1/240)this.dynamics.suspension.step(Math.min(1/240,dt-t),0,0,0,0);return 0;}if(this.status!=='running')return 0;if(this.recoveryHold>0){this.recoveryHold=Math.max(0,this.recoveryHold-dt);return 0;}this.accumulator+=dt;let travelled=0;
  if(!this.trial && this.distance>this.track.length*.10)this.stageNextLap();
  while(this.accumulator>=1/240){this.accumulator-=1/240;const h=1/240,remaining=this.track.length-this.distance;let target=Math.min(this.limitKmh/3.6,this.plannedSpeed()*this.pace);
  const localPitS=this.pitStation(this.s);
@@ -611,42 +698,31 @@ export class Cruise {
  const feedforward=target>=this.limitKmh/3.6 || this.lastLap && remaining<300?0:(v1*v1-v0*v0)/(2*Math.max(.1,this.pathLengths[index]));
  const {RL,RR}=this.dynamics.tyres;
  const drivenSpeed=(RL.omega*RL.radius+RR.omega*RR.radius)/2;
- this.gearbox.consumption=this.energyEnabled;this.dynamics.wearEnabled=this.wearEnabled;
+ this.gearbox.deploymentAllowed=this.flying;this.gearbox.consumption=this.energyEnabled;this.dynamics.wearEnabled=this.wearEnabled;
  const availableForce=this.gearbox.update(h,drivenSpeed);
- const desiredAcceleration=T.MathUtils.clamp((target-this.speed)*4+feedforward,-40,14);this.accelerationCommand+=T.MathUtils.clamp(desiredAcceleration-this.accelerationCommand,-180*h,100*h);const tangent=this.point(this.distance+2).sub(this.point(this.distance-2)),slope=Math.atan2(tangent.y,Math.hypot(tangent.x,tangent.z));const pose=this.pose();this.sampleContacts(h,pose);const zone=this.routeAeroZone(this.s);
+ const desiredAcceleration=T.MathUtils.clamp((target-this.speed)*4+feedforward,-40,14);this.accelerationCommand+=T.MathUtils.clamp(desiredAcceleration-this.accelerationCommand,-180*h,100*h);const tangent=this.point(this.distance+2).sub(this.point(this.distance-2)),slope=Math.atan2(tangent.y,Math.hypot(tangent.x,tangent.z));const pose=this.pose();
+ if(!this.trial && this.outsideRoad(pose)){this.recoverToTrack();return travelled;}
+ this.spinTime=Math.abs(this.dynamics.headingError)>Math.PI/3 && this.speed>12?this.spinTime+h:0;
+ if(!this.trial && this.spinTime>.25 && !this.invalidLap){this.invalidateLap();continue;}
+ this.sampleContacts(h,pose);const zone=this.routeAeroZone(this.s);
  if(this.previousZone>=0 && zone && zone!==this.previousZone)this.aeroZone=zone;
  if(!zone || this.accelerationCommand<-.5)this.aeroZone=0;
  this.previousZone=zone;
- this.wingTravel=advanceWing(this.wingTravel,!!this.aeroZone,h);
+ this.wingTravel=this.flying?advanceWing(this.wingTravel,!!this.aeroZone,h):0;
  const opening=wingOpening(this.wingTravel);
  const vertical=this.speed**2*T.MathUtils.lerp(this.verticalCurve[index],this.verticalCurve[(index+1)%this.verticalCurve.length],this.distance/this.planStep-index);
  const suspension=this.dynamics.suspension;
  const resistance=platformForces(this.speed,opening,suspension.frontGap,suspension.rearGap,suspension.beta).drag+lateralParameters.mass*9.81*Math.sin(slope);
  const corner=region(this.s);
- if(!this.trial && this.timed && this.contactCenters.FL){
-   const road=this.track.pose(this.s),inverse=road.quaternion.clone().invert();
-   const offsets=corners.map(k=>this.contactCenters[k]!.clone().applyQuaternion(pose.quaternion).add(pose.position).sub(road.position).applyQuaternion(inverse).x);
-   const allOutside=offsets.every(x=>x>this.track.width(this.s,1)) || offsets.every(x=>x<-this.track.width(this.s,-1));
-   if(allOutside){
-     this.memory.corners[corner].lastError="track-limits";this.incidents[corner]=1;
-     const station=this.track.wrap(this.s),bin=Math.floor(station/50);
-     if(!this.slideBins.has(bin)){this.slideBins.add(bin);this.memory.recordSlide(station,this.speed);}
-   }
- }
  const learned=this.memory.corners[corner];
  const frontLock=Math.max(-this.dynamics.tyres.FL.slip,-this.dynamics.tyres.FR.slip);
  const slip=Math.abs(Math.atan2(this.dynamics.vy-lateralParameters.rearArm*this.dynamics.yawRate,Math.max(3,this.speed)));
  const k=this.curvature();
  const yawExcess=Math.abs(this.dynamics.yawRate)-this.speed*Math.abs(k);
  const oversteer=slip>.095 && (yawExcess>.12 || this.dynamics.steer*this.dynamics.yawRate<-.003 || slip>.15);
- if(!this.trial && oversteer && this.speed>12 && this.timed && !Number.isFinite(this.limitKmh)){
-   this.memory.corners[corner].lastError="oversteer";this.incidents[corner]=1;
-   const station=this.track.wrap(this.s),bin=Math.floor(station/50);
-   if(!this.slideBins.has(bin)){
-     this.slideBins.add(bin);
-     this.slidesThisLap.add(corner);this.memory.recordSlide(station,this.speed);
-   }
- }
+ const locked=this.gearbox.brake>.05 && this.dynamics.tyres.FL.locked && this.dynamics.tyres.FR.locked;
+ this.observeIncident(this.speed<=12?undefined:oversteer?'oversteer':
+   Math.abs(this.dynamics.offset)>2.5?'missed-apex':locked?'front-lock':undefined,h);
  const apex=turnStations[corner],pickup=this.pickup[corner]*(1-learned.caution);
  const nearExit=this.s>=apex-12*pickup && this.s<apex+95;
  let request=this.accelerationCommand*lateralParameters.mass+resistance;
@@ -663,14 +739,6 @@ export class Cruise {
    const settledYaw=yawExcess<.08 && this.dynamics.steer*this.dynamics.yawRate>=0;
    if(request>0)request*=1-T.MathUtils.smoothstep(slip,settledYaw?.075:.065,.14);
    if(request<0 && frontLock>.22)request*=1-.55*T.MathUtils.smoothstep(frontLock,.22,.9);
-   if((oversteer || Math.min(-this.dynamics.tyres.FL.slip,-this.dynamics.tyres.FR.slip)>.8 || Math.abs(this.dynamics.offset)>2.5) && this.speed>10){
-     if(!this.trial)this.memory.corners[corner].lastError=oversteer?"oversteer":Math.abs(this.dynamics.offset)>2.5?"missed-apex":"front-lock";
-     this.incidents[corner]=1;
-     if(!this.trial && this.timed){
-       const station=this.track.wrap(this.s),bin=Math.floor(station/50);
-       if(!this.slideBins.has(bin)){this.slideBins.add(bin);this.memory.recordSlide(station,this.speed);}
-     }
-   }
  }
  // Trail the brake into turn-in. As lateral demand grows, release pressure
  // within the available tyre-force ellipse. Abort the trail on lock or power pickup.
@@ -714,7 +782,7 @@ export class Cruise {
  const distantWeight=.32+.13*transition;
  const pursuit=(1-distantWeight)*demand(goal)+distantWeight*demand(further);
  const ds=h*this.dynamics.step(h,this.speed,k,pursuit);
- if(this.timed && this.s>=this.nextSample){
+ if(this.flying && this.s>=this.nextSample){
    this.nextSample=this.s+5;
    const clip=reviewSections.findIndex(r=>this.s>=r.start && this.s<=r.end);
    if(clip>=0){
@@ -734,17 +802,17 @@ export class Cruise {
  if(nearExit && !trace.pickup && this.gearbox.throttle>.04)trace.pickup=this.s;
  if(nearExit && this.gearbox.throttle>.99 && !trace.full)trace.full=this.s;
  this.distance+=Math.min(remaining,ds/Math.max(.3,metric));
- if(this.timed){
+ if(this.flying){
    const gate=this.stamps.length*10,previous=previousStation-spaData.grid.s;
    if(previous<gate && this.distance>=gate)this.stamps.push(this.elapsed+h*(gate-previous)/(this.distance-previous));
  }
- if(this.timed && !this.trial)trials.forEach(({start},i)=>{if(previousStation<start && this.s>=start)this.entrySpeeds[i]=this.speed;});
+ if(this.flying && !this.trial)trials.forEach(({start},i)=>{if(previousStation<start && this.s>=start)this.entrySpeeds[i]=this.speed;});
  const j=region(previousStation),end=ends[j];
  const fraction=this.s>end?(end-previousStation)/(this.s-previousStation):1;
  this.regionTimes[j]+=h*fraction;this.exits[j]=this.speed*3.6;
  if(fraction<1 || this.distance>=this.track.length){
    if(fraction<1)this.regionTimes[j+1]+=h*(1-fraction);
-   if(this.timed){
+   if(this.flying){
      const best=this.history.reduce((winner,row,i)=>row[2]<(this.history[winner]?.[2]??Infinity)?i:winner,0);
      const ref=this.regionHistory[best]?.[j],last=this.regionHistory.at(-1)?.[j];
      this.report={i:j,delta:ref?this.regionTimes[j]-ref.time:undefined,exitDelta:ref?this.exits[j]-ref.exit:undefined,
@@ -754,13 +822,14 @@ export class Cruise {
  }
  if(Number.isFinite(this.limitKmh)||this.pace<1)this.comparable=false;
  const split=splitStations[this.splits.length];
- if(this.timed && previousStation<split && this.s>=split){
+ if(this.flying && previousStation<split && this.s>=split){
    this.splits.push(this.elapsed+h*(split-previousStation)/(this.s-previousStation));
  }
- const step=before.distanceTo(this.pose().position);travelled+=step;this.travelled+=step;if(this.timed)this.elapsed+=h;
+ const step=before.distanceTo(this.pose().position);travelled+=step;this.travelled+=step;if(this.flying)this.elapsed+=h;
+ if(this.rejoin && this.distance>=this.rejoin.end){this.rejoin=undefined;this.showPlan();}
  if(this.distance>=this.track.length && !this.lastLap){
-   if(this.timed){if(this.history.every(row=>row[2]>this.elapsed))this.bestStamps=this.stamps;this.splits.push(this.elapsed);this.history.push([...this.splits]);this.finishHold=4;this.reviews.push({lap:this.lap-1,clips:this.samples});this.reviews=this.reviews.slice(-2);this.regionHistory.push(this.regionTimes.map((time,i)=>({time,exit:this.exits[i],incident:this.slidesThisLap.has(i),trace:{...this.traces[i]}})));}
-   if(this.timed && this.comparable){
+   if(this.flying){if(this.history.every(row=>row[2]>this.elapsed))this.bestStamps=this.stamps;this.splits.push(this.elapsed);this.history.push([...this.splits]);this.finishHold=4;this.reviews.push({lap:this.lap-1,clips:this.samples});this.reviews=this.reviews.slice(-2);this.regionHistory.push(this.regionTimes.map((time,i)=>({time,exit:this.exits[i],incident:this.slidesThisLap.has(i),trace:{...this.traces[i]}})));}
+   if(this.flying && this.comparable){
      this.regionTimes.forEach((time,i)=>{
        const r=this.memory.corners[i];
        if(this.incidents[i])r.caution=Math.min(1,r.caution+.25);
@@ -783,16 +852,19 @@ export class Cruise {
      this.memory.save();
    }
    this.traces=turnStations.map(()=>({entry:0,minimum:Infinity,brakeRelease:0,turnIn:0,pickup:0,full:0}));
-   this.slideBins.clear();this.slidesThisLap.clear();this.nextSample=0;this.samples=reviewSections.map(()=>[]);this.incidents=blank();
+   this.incident=undefined;this.slideBins.clear();this.slidesThisLap.clear();this.nextSample=0;this.samples=reviewSections.map(()=>[]);this.incidents=blank();
    this.pickup=this.memory.corners.map(r=>T.MathUtils.clamp(r.pickup+.12-r.caution,0,1));
    this.regionTimes=blank();this.comparable=true;
-   this.stamps=[0];this.lap++;this.distance=0;this.elapsed=0;this.splits=[];this.adoptNextLap();continue;
+   this.stamps=[0];if(!this.timed || !this.invalidLap)this.lap++;this.attempt++;this.invalidLap=false;this.rejoin=undefined;this.spinTime=0;this.distance=0;this.elapsed=0;this.splits=[];
+   this.recoveredToMain=false;this.gearbox.deploymentAllowed=this.flying;
+   if(!this.flying){this.aeroZone=0;this.wingTravel=0;this.gearbox.electricKw=0;}
+   this.adoptNextLap();continue;
  }
  if(this.lastLap && remaining<.12){this.distance=this.track.length;this.speed=0;this.dynamics.vy=0;this.dynamics.yawRate=0;this.dynamics.ay=0;this.dynamics.acceleration=0;this.status='complete';this.accumulator=0;break;}}
  return travelled;}
  snapshot():CruiseSnapshot{
  const best=[Infinity,Infinity,Infinity];
- const timingRows:LapTiming[]=(this.timed?[...this.history,this.splits]:this.history).map((ends,index)=>({
+ const timingRows:LapTiming[]=(this.flying?[...this.history,this.splits]:this.history).map((ends,index)=>({
    lap:index+1,total:ends[2],regions:this.regionHistory[index],sectors:ends.map((end,i)=>{
      const ms=Math.round(1000*(end-(ends[i-1]??0)));
      // One entrant: the session and personal benchmarks coincide.
@@ -804,5 +876,5 @@ export class Cruise {
  const suspension=this.dynamics.suspension;
  const front=suspension.frontDownforce;
  const tyres=Object.fromEntries(corners.map(k=>{const t=this.dynamics.tyres[k];return [k,{degradation:this.wearEnabled?t.degradation*100:0,pressure:t.pressure,contact:t.contactPressure,wear:1000*Math.max(...t.wear),locked:t.locked}];}));
- return {platform:{wing:wingOpening(this.wingTravel),frontGap:suspension.frontGap,rearGap:suspension.rearGap},liveDelta:this.liveDelta(),report:this.timed||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:this.energyEnabled?this.gearbox.energy/5e6:1},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.displayedLoads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
+ return {invalidLap:this.invalidLap,recovering:this.recovering,attempt:this.attempt,validLaps:this.history.length,candidatesReady:this.alternatives.length>0,platform:{wing:wingOpening(this.wingTravel),frontGap:suspension.frontGap,rearGap:suspension.rearGap},liveDelta:this.liveDelta(),report:this.flying||this.finishHold>0?this.report:undefined,power:{electric:this.gearbox.electricKw,wheels:this.gearbox.driveKw,energy:this.energyEnabled?this.gearbox.energy/5e6:1},aero:{front,rear:suspension.downforce-front,drag:suspension.drag},tyres,station:this.track.wrap(this.s),finishHold:this.finishHold>0,gear:this.gearbox.index+1,rpm:this.gearbox.rpm,throttle:this.gearbox.throttle,brake:this.gearbox.brake,phase:this.lastLap?'in':this.timed?'timed':'out',lap:Math.min(this.count,Math.max(0,this.lap-1)),lastLap:this.history.at(-1)?.[2],bestLap:Math.min(...this.history.map(row=>row[2])),timingRows,splits:[...this.splits],aeroZone:this.aeroZone,status:this.status,speed:this.speed*3.6,progress:this.distance/this.track.length,elapsed:this.elapsed,distance:this.travelled,roll:this.dynamics.suspension.roll*180/Math.PI,pitch:this.dynamics.suspension.pitch*180/Math.PI,heave:this.dynamics.suspension.heave*1000,loads:{...this.displayedLoads},steer:this.dynamics.steer*180/Math.PI,lateralG:this.dynamics.ay/9.81,slip:Math.atan2(this.dynamics.vy,Math.max(this.speed,.1))*180/Math.PI};}
 }

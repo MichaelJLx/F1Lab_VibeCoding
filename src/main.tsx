@@ -30,22 +30,23 @@ useEffect(()=>{if(engine.current){engine.current.cruise.energyEnabled=energyUse;
 useEffect(()=>{if(engine.current){engine.current.cruise.limitKmh=cruiseLimit===-1?Infinity:cruiseLimit;engine.current.cruise.pace=cruiseLimit===-1?.94:1;}},[cruiseLimit,circuitId]);
 const circuit=circuits.find(c=>c.id===circuitId)!;
 const isSpa=circuitId==='be-1925',preview=engine.current?.preview;
+useEffect(()=>{engine.current?.line.setVisible(lineVisible,candidates);},[lineVisible,candidates,ready,circuitId]);
 useEffect(()=>{engine.current?.setTrackSigns(boards);},[boards,circuitId,ready]);
 function chooseCircuit(id:string){
  setReview(false);
  const e=engine.current;
  if(id!==circuitId && e){
-   e.switchCircuit(id);e.line.mesh.visible=id==='be-1925' && lineVisible;
+   e.switchCircuit(id);
    setCircuitId(id);setView('track');setWingPreview(false);setSpin(false);setExplode(false);
  }
  setTrackPicker(false);
 }
 const raceLaps:Record<string,number>={'au-1953':58,'cn-2004':56,'jp-1962':53,'bh-2002':57,'sa-2021':50,'us-2022':57,'ca-1978':70,'mc-1929':78,'es-1991':66,'at-1969':71,'gb-1948':52,'be-1925':44,'hu-1986':70,'nl-1948':72,'it-1922':53,'es-2026':57,'az-2016':51,'sg-2008':62,'us-2012':56,'mx-1962':71,'br-1940':71,'us-2023':50,'qa-2004':57,'ae-2009':58};
 const phaseLabel=cruise.phase==='in'?'进站圈':'出站圈';
-const stage=cruise.status==='complete'?'已结束':cruise.status==='idle'?'待发车':cruise.phase==='timed'?'飞驰圈 '+cruise.lap+'/'+laps:phaseLabel;
+const stage=cruise.recovering?'冲出赛道 · 正在复位':cruise.invalidLap?'无效圈':cruise.status==='complete'?'已结束':cruise.status==='idle'?'待发车':cruise.phase==='timed'?'飞驰圈 '+cruise.lap+'/'+laps:phaseLabel;
 const statusLabel=cruise.status==='paused'?'暂停 · '+stage:stage;
 const completed=(cruise.timingRows??[]).filter(row=>row.total!==undefined);
-const finish=cruise.finishHold?completed.at(-1):undefined;
+const finish=!cruise.invalidLap&&cruise.finishHold?completed.at(-1):undefined;
 const shownRow=finish??(cruise.phase==='timed'?cruise.timingRows?.at(-1):undefined);
 function resetCar(){
  setReview(false);engine.current?.resetGrid();
@@ -68,6 +69,7 @@ return <main className={`telemetry-hud console-layout${collapsed?' console-colla
 <SpaBroadcast data={cruise} showCircuit={isSpa} inspecting={!!selected} aeroVisible={aeroVisible} flowVisible={flowVisible} pressure={pressure}/>
 {view==='helmet'&&<div className="helmet-visor" aria-hidden="true"><span/></div>}
 <div ref={anchors} className={`annotations ${labels&&ready?'':'hidden'}`}>{Object.entries(names).map(([key,name])=><button key={key} data-key={key} className="anchor" onClick={()=>key==='vehicle'?camera('hero'):engine.current?.select(key)}><i/>{name}<span>＋</span></button>)}</div>
+{cruise.recovering&&<div className="recovery-notice" role="status">冲出赛道 · 正在复位</div>}
 {!ready&&!error&&<div className="loading"><i/>赛车准备中…</div>}{error&&<div role="alert" className="loading">{error}</div>}
 {selected&&<aside className="part-card"><button className="close" aria-label="关闭部件详情" onClick={()=>engine.current?.select(null)}>×</button><h2>{names[selected]}</h2>{/^(FL|FR|RL|RR)$/.test(selected)?<div className="physics-readout">轮胎负荷 <b>{Math.round(cruise.loads?.[selected]??0)} N</b>{cruise.tyres?.[selected] && <small>胎压 {(cruise.tyres[selected].pressure/100).toFixed(2)} bar · 接地压力 {cruise.tyres[selected].contact.toFixed(0)} kPa<br/>平斑 {cruise.tyres[selected].wear.toFixed(2)} mm {cruise.tyres[selected].locked?'· 锁死':''}</small>}</div>:<div className="physics-readout">侧倾 <b>{(cruise.roll??0).toFixed(2)}°</b> · 俯仰 <b>{(cruise.pitch??0).toFixed(2)}°</b><br/>车身起伏 <b>{(cruise.heave??0).toFixed(1)} mm</b></div>}{/^(FL|FR|RL|RR)$/.test(selected)&&<><label className="slider">前轮转向 <b>{steer}°</b><input aria-label="前轮转向角度" disabled={cruise.status==='running'||cruise.status==='paused'} type="range" min="-25" max="25" value={steer} onChange={ev=>{setSteer(+ev.target.value);if(engine.current)engine.current.steering=+ev.target.value*Math.PI/180;}}/></label><button disabled={cruise.status==='running'||cruise.status==='paused'} onClick={()=>toggle('spin')} className="text-action">{spin?'停止旋转':'旋转车轮'} →</button></>}</aside>}
 
@@ -75,15 +77,15 @@ return <main className={`telemetry-hud console-layout${collapsed?' console-colla
 <button className="console-collapse" aria-label={collapsed?'展开底栏':'收起底栏'} aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)} title={collapsed?'展开底栏':'收起底栏'}>{collapsed?'⌃':'⌄'}</button>
 <div className="control-console" hidden={collapsed}>
 <section className="console-zone energy-zone" aria-label="能源与轮胎"><h2>能源与轮胎</h2><div className="energy-grid"><div className="energy-controls"><Toggle on={energyUse} change={()=>setEnergyUse(v=>!v)} disabled={!isSpa}>ERS 消耗</Toggle><ErsGauge data={cruise} enabled={energyUse}/><Toggle on={tyreWear} change={()=>setTyreWear(v=>!v)} disabled={!isSpa}>轮胎磨损</Toggle></div><VehicleStatus data={cruise} wearEnabled={tyreWear}/></div></section>
-<section className="console-zone drive-zone" aria-label="驾驶与空力"><h2>驾驶与空力 <span>{wingPreview?'主动翼展开':cruise.aeroZone?'直道模式':'弯道模式'}</span></h2>
+<section className="console-zone drive-zone" aria-label="驾驶与空力"><h2>驾驶与空力 <span>{cruise.phase==='timed'&&!cruise.invalidLap&&cruise.aeroZone?'直道模式':'基础模式'}</span></h2>
 <Segments label="驾驶节奏" value={String(cruiseLimit)} options={[["Infinity","极限推进"],["-1","稳健节奏"],["120","巡航 120"],["60","巡航 60"]]} change={v=>setCruiseLimit(+v)} disabled={!isSpa}/>
 <div className="console-grid"><Toggle on={flowVisible} disabled={!ready} change={()=>{engine.current?.setAirflow(!flowVisible);setFlowVisible(!flowVisible);}}>空气流场</Toggle><Toggle on={pressure} disabled={!ready} change={()=>{engine.current?.setPressure(!pressure);setPressure(!pressure);}}>压力系数</Toggle><Toggle on={aeroVisible} change={()=>setAeroVisible(v=>!v)}>空力读数</Toggle><Toggle on={wingPreview} disabled={!ready||cruise.status!=='idle'} change={()=>{if(engine.current)engine.current.gridWingPreview=!wingPreview;setWingPreview(!wingPreview);}}>主动翼展开</Toggle></div></section>
 <section className="console-zone aids-zone" aria-label="视图辅助"><h2>视图辅助</h2><div className="aids-grid">
-<Toggle on={lineVisible} disabled={!isSpa} change={()=>{setLineVisible(!lineVisible);if(engine.current)engine.current.line.mesh.visible=!lineVisible;}}>最佳走线</Toggle><Toggle on={candidates} disabled={!isSpa} change={()=>{setCandidates(v=>!v);if(engine.current)engine.current.line.alternatives.visible=!candidates;}}>备选走线</Toggle><Toggle on={boards} change={()=>setBoards(v=>!v)}>赛道提示牌</Toggle><Toggle on={labels} change={()=>setLabels(!labels)}>部件标注</Toggle><Toggle on={wire} change={()=>toggle('wire')}>结构视图</Toggle><Toggle on={rotate} change={()=>toggle('rotate')}>环绕</Toggle><Toggle on={explode} disabled={cruise.status==='running'||cruise.status==='paused'} change={()=>toggle('explode')}>车轮拆解</Toggle><Toggle on={spin} disabled={cruise.status==='running'||cruise.status==='paused'} change={()=>toggle('spin')}>车轮旋转</Toggle>
-</div><div className="view-tools"><Segments label="路面" value={road} options={[["soft","柔焦"],["clear","清晰"],["outline","轮廓"]]} change={v=>{setRoad(v);if(engine.current)engine.current.roadStyle=v;}}/><Segments label="观察方向" value={view} options={[["bottom","车底"],["side","侧面"],["top","顶部"],["front","车头"],["rear","车尾"]]} change={camera}/></div></section>
+<Toggle on={lineVisible} disabled={!isSpa} change={()=>setLineVisible(v=>!v)}>最佳走线</Toggle><Toggle on={candidates} disabled={!isSpa} change={()=>setCandidates(v=>!v)}>备选走线</Toggle><Toggle on={boards} change={()=>setBoards(v=>!v)}>赛道提示牌</Toggle><Toggle on={labels} change={()=>setLabels(!labels)}>部件标注</Toggle><Toggle on={wire} change={()=>toggle('wire')}>结构视图</Toggle><Toggle on={rotate} change={()=>toggle('rotate')}>环绕</Toggle><Toggle on={explode} disabled={cruise.status==='running'||cruise.status==='paused'} change={()=>toggle('explode')}>车轮拆解</Toggle><Toggle on={spin} disabled={cruise.status==='running'||cruise.status==='paused'} change={()=>toggle('spin')}>车轮旋转</Toggle>
+</div>{candidates&&!cruise.candidatesReady&&isSpa&&<small className="line-hint" role="status">备选走线将在飞驰圈准备完成后显示</small>}<div className="view-tools"><Segments label="路面" value={road} options={[["soft","柔焦"],["clear","清晰"],["outline","轮廓"]]} change={v=>{setRoad(v);if(engine.current)engine.current.roadStyle=v;}}/><Segments label="观察方向" value={view} options={[["bottom","车底"],["side","侧面"],["top","顶部"],["front","车头"],["rear","车尾"]]} change={camera}/></div></section>
 <section className="console-zone timing-zone" aria-label="圈速遥测"><h2>圈速遥测 <span>{!ready?'加载中':isSpa?statusLabel:'赛道浏览'}</span></h2>
-<div className="session-times"><strong>{isSpa?(finish?formatTime(finish.total!):cruise.phase==='timed'?formatTime(cruise.elapsed):stage):'—'}</strong><span>{(cruise.distance/1000).toFixed(2)} km</span>{cruise.liveDelta!==undefined&&<em className={cruise.liveDelta<=0?'gain':'loss'}>{cruise.liveDelta>=0?'+':''}{cruise.liveDelta.toFixed(3)}</em>}{Number.isFinite(cruise.bestLap)&&<small>最佳 {formatTime(cruise.bestLap!)}</small>}</div>
-<div className="timing-segments">{[0,1,2].map(i=>{const result=shownRow?.sectors[i];return <div key={i} className={result?.color??''}><span>S{i+1}</span><b>{result?(result.ms/1000).toFixed(3):'—'}</b></div>;})}</div>
+<div className="session-times"><strong>{isSpa?(cruise.invalidLap?'无效圈':finish?formatTime(finish.total!):cruise.phase==='timed'?formatTime(cruise.elapsed):stage):'—'}</strong><span>{(cruise.distance/1000).toFixed(2)} km</span>{cruise.liveDelta!==undefined&&<em className={cruise.liveDelta<=0?'gain':'loss'}>{cruise.liveDelta>=0?'+':''}{cruise.liveDelta.toFixed(3)}</em>}{Number.isFinite(cruise.bestLap)&&<small>最佳 {formatTime(cruise.bestLap!)}</small>}</div>
+<div className="timing-segments">{[0,1,2].map(i=>{const result=shownRow?.sectors[i];return <div key={i} className={result?.color??''}><span>S{i+1}</span><b>{cruise.invalidLap?'无效圈':result?(result.ms/1000).toFixed(3):'—'}</b></div>;})}</div>
 <div className="timing-actions"><button aria-haspopup="dialog" onClick={()=>setHistoryOpen(true)}>圈速榜 ↗</button>{(engine.current?.cruise.reviews.length??0)>0&&<button onClick={()=>{if(cruise.status==='running')engine.current?.toggleCruise();setReview(true);}}>过弯回放</button>}{cruise.report&&<small title={`${turnNames[cruise.report.i]} · 出弯 ${cruise.report.exitDelta?.toFixed(0)??'—'} km/h`}>T{cruise.report.i+1} {cruise.report.delta===undefined?'—':(cruise.report.delta>=0?'+':'')+cruise.report.delta.toFixed(2)+' s'}</small>}</div></section>
 </div>
 {historyOpen&&<div className="history-scrim" onClick={()=>setHistoryOpen(false)}><section className="history-dialog" role="dialog" aria-modal="true" aria-label="圈速榜" onClick={e=>e.stopPropagation()}><button className="close" aria-label="关闭圈速榜" autoFocus onClick={()=>setHistoryOpen(false)}>×</button><SectorHistory rows={cruise.timingRows??[]} expanded/></section></div>}

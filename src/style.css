@@ -242,3 +242,5 @@ header .brand{gap:5px;font-size:28px;letter-spacing:-1.2px;white-space:nowrap;co
 @media(max-width:720px){.lower-hud{flex-wrap:wrap;gap:10px;bottom:8px}.console-layout .lower-hud .circuit-inset{order:2;height:96px}.lower-hud>.broadcast-dial{order:3;margin-left:auto;flex-basis:126px;width:126px}.lower-hud .telemetry-ribbon{order:1;flex-basis:100%;max-width:none;grid-template-columns:155px minmax(0,1fr);height:182px}.lower-hud .telemetry-reopen{order:1;flex-basis:auto;margin:0 auto}.aero-stack{right:12px}.aero-stack .aero-telemetry{width:190px}}
 
 .lower-hud .telemetry-values,.lower-hud .telemetry-values *{text-shadow:0 1px 1px #10141a70;filter:none}.lower-hud .telemetry-ribbon .segments button{text-shadow:none}.telemetry-ruler{filter:none;-webkit-text-stroke:0}
+
+.recovery-notice{position:absolute;z-index:12;top:24%;left:50%;transform:translateX(-50%);padding:10px 18px;border:1px solid #ff9b4066;border-radius:24px;background:#242930cc;color:#fff5e8;font:600 14px/1.4 system-ui;backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap}.line-hint{display:block;font-size:10px;color:#76746d;line-height:1.2}

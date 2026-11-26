@@ -7,7 +7,7 @@ export function AeroTelemetry({data,forces,flow,pressure}:{data:CruiseSnapshot;f
  if(!forces&&!flow&&!pressure)return null;
  const front=Math.max(0,loads[0]),rear=Math.max(0,loads[1]),drag=Math.max(0,loads[2]);
  const total=front+rear,share=total?front/total:.5;
- return <aside className="aero-telemetry" aria-label="空气动力学"><div className="aero-mode">{data.aeroZone?"直道模式":"弯道模式"}</div>
+ return <aside className="aero-telemetry" aria-label="空气动力学"><div className="aero-mode">{data.phase==='timed'&&!data.invalidLap&&data.aeroZone?"直道模式":"基础模式"}</div>
  {forces&&<><div className="aero-title"><span>下压力</span><strong>{(total/1000).toFixed(2)} <small>kN</small></strong></div>
  <div className="aero-distribution" role="img" aria-label={`前轴 ${(front/1000).toFixed(2)}，后轴 ${(rear/1000).toFixed(2)} 千牛`}><i style={{width:`${total?share*100:0}%`}}/><i style={{width:`${total?(1-share)*100:0}%`}}/></div>
  <div className="aero-split"><span>前轴 {(share*100).toFixed(0)}% · {(front/1000).toFixed(2)} kN</span><span>后轴 {((1-share)*100).toFixed(0)}% · {(rear/1000).toFixed(2)} kN</span></div>

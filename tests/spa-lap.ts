@@ -118,7 +118,7 @@ const gates=[5023,5200,5982,6430,6588,6637,6750,6900];
 let gate=0,previousGateTime=0,busEntry=0,busTime=0,busExit=0;
 const fastComplex={minimum:Infinity,peakBrake:0};
 const peakRearSlip=[0,0];
-let kemmelSamples=0,kemmelFullThrottle=0;
+let kemmelSamples=0,kemmelFullThrottle=0,kemmelBrake=0;
 for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  const lap=car.lap,station=car.s,time=car.elapsed;
  car.tick(1/60);
@@ -130,7 +130,8 @@ for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
    });
  }
  if(car.lap!==lap)assert.equal(car.snapshot().power.energy,1);
- if(car.lap===1 && car.s<835 || car.lastLap && car.s-track.length>=-420)assert.equal(car.aeroZone,0,'pit route cannot activate straight mode');
+ assert.equal(car.invalidLap,false,'normal driving must stay within the road and kerbs');
+ if(!car.flying){assert.equal(car.aeroZone,0,'non-flying laps cannot activate straight mode');assert.equal(car.wingTravel,0);assert.ok(car.gearbox.electricKw<=0,'non-flying laps cannot deploy ERS');}
  if(car.lap===1 && car.s>160 && car.s<300)assert.ok(Math.min(car.dynamics.tyres.FR.omega,car.dynamics.tyres.RR.omega)>0);
  if(car.timed && car.s>=0 && car.s<50){
    crossingBrake=Math.max(crossingBrake,car.gearbox.brake);
@@ -148,7 +149,7 @@ for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  }
  if(car.timed && car.s>=850 && car.s<1160){fastComplex.minimum=Math.min(fastComplex.minimum,car.speed*3.6);fastComplex.peakBrake=Math.max(fastComplex.peakBrake,car.gearbox.brake);}
  if(car.timed && car.s>=1400 && car.s<1950){
-   kemmelSamples++;
+   kemmelSamples++;kemmelBrake=Math.max(kemmelBrake,car.gearbox.brake);
    if(car.gearbox.throttle>=.99)kemmelFullThrottle++;
  }
  if(lap===2 && !car.lastLap && station<gates[gate] && car.s>=gates[gate]){
@@ -190,6 +191,7 @@ for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  if(car.timed && car.gearbox.brake>.025 && Math.abs(car.dynamics.steer)>.025 && Math.abs(car.dynamics.ay)>4)trailSamples++;
  assert.ok(Number.isFinite(car.speed+car.dynamics.offset+car.dynamics.suspension.heave));
 }
+assert.ok(kemmelBrake<.02,"no phantom braking on Kemmel before the Les Combes braking zone");
 assert.ok(kemmelFullThrottle>kemmelSamples*.6,"Kemmel acceleration should use full throttle");
 assert.equal(car.history.length,car.lapCount);
 console.log('T1 inner kerb frames / timing straight peak brake / line change (m)',t1Kerb,crossingBrake,lineChange);
@@ -234,7 +236,8 @@ assert.ok(restored.corners.some(r=>r.time>0 && r.pickup>0));
 
 console.log('T8 entry / T9 rear slip peaks (degrees)',peakRearSlip.map(x=>x.toFixed(1)));
 assert.ok(peakRearSlip.every(peak=>peak<9),'repeatable rear stability through Bruxelles and the following left');
-assert.ok(restored.slides.length>0,'slide positions survive reload');
+// A clean run need not create a learning penalty; confirmed incidents are covered
+// separately in driving.ts. Any recorded limit must still survive a reset.
 car.reset();car.toggle();
 for(const mark of restored.slides){
  const index=Math.round(track.wrap(mark.station-car.s)/car.planStep)%car.pathLengths.length;

@@ -75,7 +75,7 @@ export class Inspector {
    const delta=sample?undefined:snapshot.liveDelta;
    const soc=sample?undefined:snapshot.power?.energy;
    const tyres=sample?undefined:lap.dynamics.tyres;
-   const key=[speed,rpm,gear,delta?.toFixed(2),soc?.toFixed(2),snapshot.aeroZone,
+   const key=[speed,rpm,gear,delta?.toFixed(2),soc?.toFixed(2),snapshot.aeroZone,snapshot.invalidLap,
      ...Object.values(tyres??{}).map(t=>Math.round(t.temperature)+'/'+Math.round(t.pressure))].join('/');
    this.wheelRPM.value=sample?.rpm??box.rpm;
    if(key===this.lastLCD)return;
@@ -93,7 +93,7 @@ export class Inspector {
    field('ERS '+(soc===undefined?'—':Math.round(soc*100)+'%'),12,47,18,'#9accc6','left');
    field((suspensionParameters.brakeFront*100).toFixed(1),498,29,28,'#eef0ff','right');
    field('BRAKE BAL',498,47,12,'#99a1bc','right');
-   field(sample?'REPLAY':snapshot.aeroZone?'STRAIGHT':'CORNER',256,63,20,'#a7c9ff');
+   field(sample?'REPLAY':snapshot.aeroZone?'STRAIGHT':'BASE',256,63,20,'#a7c9ff');
    ctx.fillStyle='#c5cbe2';ctx.fillRect(12,77,112,48);
    field(String(speed),68,114,42,'#171a2b');field('km/h',68,144,16,'#99a1bc');
    field(String(gear),250,139,90,'#9fe0b5');
@@ -109,10 +109,10 @@ export class Inspector {
        tyre && tyre.temperature>120?'#ff9588':'#e8ebff','right');
      field(tyre?(tyre.pressure/100).toFixed(2)+' bar':'—',x,209,17,'#a6c8df','left');
    });
-   const mode=sample?'REPLAY':snapshot.status==='idle'?'READY':snapshot.phase==='out'?'OUT LAP':snapshot.phase==='in'?'IN LAP':'PUSH';
+   const mode=sample?'REPLAY':snapshot.invalidLap?'INVALID LAP':snapshot.status==='idle'?'READY':snapshot.phase==='out'?'OUT LAP':snapshot.phase==='in'?'IN LAP':'PUSH';
    ctx.fillStyle=snapshot.aeroZone?'#2c554f':'#3d3151';ctx.fillRect(12,223,488,25);
    field(mode,24,242,17,'#ecedff','left');
-   field(sample?'':snapshot.aeroZone?'AERO SL':'AERO CORNER',488,242,17,'#b5dfc9','right');
+   field(sample?'':snapshot.aeroZone?'AERO SL':'AERO BASE',488,242,17,'#b5dfc9','right');
    texture.needsUpdate=true;
  }
  private mirrorFlash?:ReturnType<typeof mirrorGlare>;
@@ -135,8 +135,8 @@ export class Inspector {
  this.controls.addEventListener('start',()=>{this.targetPos=undefined;this.targetLook=undefined;});this.free=new FreeCamera(this.camera,this.renderer.domElement);
  this.resize=new ResizeObserver(()=>this.fit());this.resize.observe(host);this.fit();
  this.renderer.domElement.addEventListener('pointerdown',this.pointerDown);this.renderer.domElement.addEventListener('pointerup',this.pointerUp);this.renderer.domElement.addEventListener('lostpointercapture',this.roofCancel);this.renderer.domElement.addEventListener('pointercancel',this.roofCancel);this.renderer.domElement.addEventListener('pointermove',this.roofMove);
- this.track.group.scale.setScalar(this.displayScale);this.line.mesh.scale.setScalar(this.displayScale);
- this.scene.add(this.track.group,this.line.mesh,this.sparks.trails);
+ this.track.group.scale.setScalar(this.displayScale);this.line.group.scale.setScalar(this.displayScale);
+ this.scene.add(this.track.group,this.line.group,this.sparks.trails);
  new GLTFLoader().load('/models/rb22.glb',g=>{if(this.destroyed){this.disposeObject(g.scene);return;}this.car=g.scene;this.scene.add(this.car);this.car.scale.setScalar(this.displayScale);
  // Preserve source textures and use the device's full oblique texture filtering.
  const anisotropy=this.renderer.capabilities.getMaxAnisotropy();
@@ -306,7 +306,7 @@ export class Inspector {
      this.preview.track.dispose();
    }
    this.preview=next;
-   this.track.group.visible=!next;
+   this.track.group.visible=!next;this.line.group.visible=!next;
    if(next){
      next.track.group.scale.setScalar(this.displayScale);
      this.scene.add(next.track.group);
@@ -388,7 +388,7 @@ export class Inspector {
  this.tailPulse.value=pulse;
  const oldPos=this.car?this.scratch.oldPos.copy(this.car.position):undefined,oldQ=this.car?this.scratch.oldQ.copy(this.car.quaternion):undefined;const ds=this.car?this.cruise.tick(dt):0;this.placeCar(dt);
  if(this.car)this.sparks.update(dt,this.cruise,this.chassis,this.displayScale,!!this.preview);
- if(this.car&&oldPos&&oldQ&&ds>0&&this.mode==='follow'){
+ if(this.car&&oldPos&&oldQ&&(ds>0||this.cruise.recovering)&&this.mode==='follow'){
  let rotation=this.scratch.rotation.copy(this.car.quaternion).multiply(this.scratch.inverse.copy(oldQ).invert());
  if(this.heroFollow){
    const previous=this.scratch.inverse.copy(this.followHeading??oldQ);
