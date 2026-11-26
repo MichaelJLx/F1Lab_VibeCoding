@@ -1,6 +1,6 @@
 const key='f1lab.spa.driver.v1';
 export type SlideMark={station:number,speed:number,safeSpeed:number,cleanPasses?:number};
-export type CornerRecord={trace?:{entry:number,minimum:number,brakeRelease:number,turnIn:number,pickup:number,full:number},time:number,line:number,pickup:number,caution:number};
+export type CornerRecord={lastError?:string,trace?:{entry:number,minimum:number,brakeRelease:number,turnIn:number,pickup:number,full:number},time:number,line:number,pickup:number,caution:number};
 const fresh=():CornerRecord=>({time:0,line:0,pickup:0,caution:0});
 export class DriverMemory{
  slides:SlideMark[]=[];

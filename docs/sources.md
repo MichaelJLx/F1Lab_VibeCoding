@@ -1,8 +1,8 @@
 # 素材与赛道数据
 
-| 素材 | 在 F1Lab 中的用途与修改 | 来源与许可说明 |
+| 素材 | 在 Formula one 中的用途与修改 | 来源与许可说明 |
 | --- | --- | --- |
-| 2026 Redbull RB22 | Tyler_Dave 制作，经 AgentiLoop/F1 获取。上游修改了贴图中的金色紧固件；F1Lab 烘焙模型变换、统一比例、拆分四轮与活动翼面，保留原车涂装。 | [Sketchfab 原作](https://sketchfab.com/3d-models/2026-redbull-rb22-0a3d24a58e0549d591a5a48c22eec383) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [AgentiLoop/F1](https://github.com/AgentiLoop/F1) · [上游署名记录](../data/models/rb22/UPSTREAM-CREDITS.md) |
+| 2026 Redbull RB22 | Tyler_Dave 制作，经 AgentiLoop/F1 获取。上游修改了贴图中的金色紧固件；Formula one 烘焙模型变换、统一比例、拆分四轮与活动翼面，保留原车涂装。 | [Sketchfab 原作](https://sketchfab.com/3d-models/2026-redbull-rb22-0a3d24a58e0549d591a5a48c22eec383) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [AgentiLoop/F1](https://github.com/AgentiLoop/F1) · [上游署名记录](../data/models/rb22/UPSTREAM-CREDITS.md) |
 | 24 站平面布局 | 将 Tomislav Bacinger 的经纬度中心线投影为米制坐标，用于赛道缩略图、路带和格线定位。 | [f1-circuits](https://github.com/bacinger/f1-circuits) · [MIT 许可全文](../data/tracks/layouts/LICENSE-layout.md) |
 | 路宽、杆位与 Spa 高程 | FIA 清单提供参考宽度与杆位侧；Spa 官方地图提供离散高程点，赛事指南提供宽度范围。 | [FIA 2026 清单](https://www.fia.com/sites/default/files/circuits_fia20261104.pdf) · [2023 清单](https://www.fia.com/sites/default/files/circuits_fia20231022.pdf) · [Spa 官方地图](https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf) · [赛事指南](https://press.fiawec.com/assets/fileuploads/66/12/66124edb6859e.pdf) |
 | 其余 23 站高程 | 沿中心线采样 Mapzen 地形瓦片，经平滑生成纵坡。不同地区的原始数据提供方与使用条件见上游署名。 | [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) · [数据提供方与署名](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) |
@@ -42,3 +42,21 @@ Eau Rouge 至 Raidillon 的局部高程使用佩雷兹 2024 年比利时站第 4
 交叉检查用 Gregory 与 O’Reilly 的 10° 上表面曲线（Re=288 万），在 Ladson 测点覆盖范围内逐点比较。22 个对照点平均绝对差为 0.426 Cp；该差值包含试验条件和前缘测点密度差异。[对照数据](https://tmbwg.github.io/turbmodels/NACA0012_validation/CP_Gregory_expdata.dat)
 
 侧箱下切口、底板侧缘、前翼翼尖和扩散器边缘使用有限涡核近似。涡源位置、衰减长度与环量系数为展示估值，使用局部翼载、离地间隙及侧滑调制。前轮尾流方向随转向与侧滑移动，减速区削弱侧箱前缘的有效来流。可视化中的烟来自虚拟示踪剂。机制参考 [Formula 1 对侧箱与底板前缘的技术分析](https://www.formula1.com/en/latest/article/tech-analysis-why-audis-new-look-bodywork-in-bahrain-got-people-talking.6zWbwADblkDxwOpH0nHPYz) 和 [Knowles 等的前轮近尾流实验](https://doi.org/10.1177/0954407013491903)。
+
+### 连续弯寻优与消耗模型
+
+八组评估覆盖 T1、T2–T4、T5–T7、T8–T9、T10–T11、T12–T14、T15–T17、T18–T19。每组联合采样三个入弯位置、三个弯心时机和三个出弯位置，按出口直道计时门的总耗时排序。当前圈的获选路径与制动色带使用同一组规划数据。灰色备选线路可在检视工具中开启。
+
+电量消耗与轮胎磨损默认关闭。开启时，5 MJ 等效电池预算、180 kW 电机输出与 300 kW 回收上限，以及轮胎里程、横向载荷、滑移磨损率均为可检查的工程估算。磨损同时影响纵向制动与横向抓地力，规划器收到同一份电量和四轮磨损状态。
+
+- Brembo 2025 Spa 数据中 T1、T5、T18 峰值减速度分别为 4.6、4.7、4.7G，制动距离分别为 117、93、114 米。来源 [Brembo Spa 制动表](https://brem-p-001.sitecorecontenthub.cloud/api/public/content/570dbacfd321487ea315d58fe477b029?v=54dc7ca7)。
+- Mercedes 的说明给出 Spa 总高差约 102 米，Eau Rouge 压缩段约 3G 垂向载荷。现有路带高差约 97 米，逐点倾角字段为零，需要带地理坐标的测绘资料进一步校准。来源 [Mercedes 赛道高程说明](https://www.mercedesamgf1.com/news/the-impact-of-track-elevation-in-f1)。
+- 新增 150/100/50 米提示牌按本地弧长定位，弯道参考站点为估算。直道模式牌使用车辆主动翼相同的区间函数，表示系统允许区间，实际展开仍受维修区状态与制动控制。
+
+### 方向盘屏显与车手视线
+
+LCD 信息层级参考实车方向盘照片；PCU 硬件能力参考 [McLaren Applied PCU-8D](https://cdn.mclarenapplied.com/media/Catalogue/PCU-8D.pdf)。屏显为本平台的实时遥测页，未采用未经核实的车队内部代码。ERS 来自动力系统，制动平衡与制动力分配共用参数，四轮温度和胎压取自轮胎模型。
+
+头盔眼位按现有座舱几何定位，相对原模型坐标约为 (0, 0.78, 0.20) m，低于 T-cam。前向、侧向惯性与弯心注视采用有限幅值、平滑响应的视觉模型，不是车手生理测量值。
+
+烟流使用四轮实模半径、轴向宽度与当前轮轴方向建立有限圆柱距离边界，车身部件使用三角网格 BVH 距离查询；着色器为烟带宽度提供补充遮挡。绕流、翼面上洗、轮胎尾流与涡核仍由降阶流场近似驱动，不等同于 RB22 整车 CFD 标定。

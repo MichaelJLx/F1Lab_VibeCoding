@@ -6,7 +6,7 @@ export function LapCount({value,maximum,locked,onChange}:{
  const [editing,setEditing]=useState<string|null>(null);
  const clamp=(n:number)=>Math.max(1,Math.min(maximum,Math.trunc(n)));
  return <div className="laps-picker" role="group" aria-label="比赛圈数">
-   <span>计时圈</span>
+   <span>飞驰圈</span>
    <button aria-label="减少一圈" disabled={locked||value<=1} onClick={()=>onChange(value-1)}>−</button>
    <input aria-label="比赛圈数" type="number" inputMode="numeric" min={1} max={maximum} step={1}
      disabled={locked} value={editing??value} onChange={e=>{

@@ -15,11 +15,21 @@ export function plannedForce(speed:number){
 }
 export class Gearbox{
  // Estimated equivalent wheel-side split; electric output is part of the 660 kW curve.
+ consumption=false;energy=5e6;
  electricKw=0;driveKw=0;
  private combustionForce=0;
- account(speed:number,force:number){
+ coastRecoveryForce(speed:number){
+   // Rear-axle generator torque, applied to tyre contact forces by the integrator.
+   return this.consumption&&this.energy<5e6&&speed>5?Math.min(1000,60000/speed)*Math.min(1,(speed-5)/10):0;
+ }
+ account(speed:number,force:number,dt=0,rearForce=0){
    this.driveKw=force*speed/1000;
-   this.electricKw=Math.min(180,Math.max(0,force-this.combustionForce)*speed/1000);
+   const recovering=this.throttle<=.03||this.brake>.01;
+   this.electricKw=force>=0?Math.min(180,Math.max(0,force-this.combustionForce)*speed/1000):recovering?-Math.min(300,Math.max(0,-rearForce*speed)*.9/1000):0;
+   if(!this.consumption){this.energy=5e6;this.electricKw=Math.max(0,this.electricKw);return;}
+   // Report energy actually accepted/delivered, including full/empty battery limits.
+   if(dt>0)this.electricKw=Math.max(-(5e6-this.energy)/(1000*dt),Math.min(this.energy/(1000*dt),this.electricKw))||0;
+   this.energy=this.consumption?Math.max(0,Math.min(5e6,this.energy-this.electricKw*1000*dt)):5e6;
  }
  index=0;rpm=5000;shift=0;throttle=0;brake=0;
  update(dt:number,speed:number){
@@ -32,6 +42,6 @@ export class Gearbox{
    this.rpm=Math.round(Math.max(5000,rpmAt(speed,this.index)));
    const force=forceAt(speed,this.index)*(this.shift>0?.38:1);
    this.combustionForce=.74*force;
-   return force;
+   return this.combustionForce+.26*force*(this.consumption?Math.min(1,this.energy/500000):1);
  }
 }

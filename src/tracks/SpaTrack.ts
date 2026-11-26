@@ -14,9 +14,13 @@ export type RibbonData={
 };
 export class SpaTrack {
  pit?:PitLane;
- group=new T.Group(); road:T.Mesh; curbs:T.Mesh; markings=new T.Group();edges:T.LineSegments;bounds=new T.Box3();
+ group=new T.Group(); road:T.Mesh; curbs:T.Mesh; markings=new T.Group();signs=new T.Group();edges:T.LineSegments;bounds=new T.Box3();
  length:number;startForward:T.Vector3;startLeft:T.Vector3;spawn:T.Vector3;spawnSlope=0;
  curbFaces:{s:number,heights:number[][],faces:T.Triangle[]}[]=[];
+ private sampleScratch={a:new T.Vector3(),b:new T.Vector3(),p:new T.Vector3(),left:new T.Vector3()};
+ private curveScratch=[new T.Vector3(),new T.Vector3(),new T.Vector3()];
+ private curbPoint=new T.Vector3();private curbBary=new T.Vector3();
+ private lastStyle?:RoadStyle;private lastUnder?:boolean;
  private curbBands:{start:number,end:number,side:number}[]=[];
  constructor(private layout:RibbonData=data,id="spa",signage=true){
  const isSpa=layout===spaData;this.length=layout.geometryLength;
@@ -104,6 +108,14 @@ export class SpaTrack {
  asphalt.generateMipmaps=true;asphalt.minFilter=T.LinearMipmapLinearFilter;
  asphalt.magFilter=T.LinearFilter;asphalt.needsUpdate=true;
  this.road=new T.Mesh(geom,new T.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.0008,envMapIntensity:.08,color:0x343538,roughness:1,metalness:0,side:T.DoubleSide,transparent:true,opacity:.62}));this.road.name='Spa road ribbon';this.group.add(this.road);
+ if(this.pit && !signage){
+   // Worker rollouts query the same driving surface as the rendered circuit.
+   for(let i=1;i<rows.length;i++){
+     const a=rows[i-1],b=rows[i];
+     this.pit.addFace(a.left,b.left,a.right);this.pit.addFace(a.right,b.left,b.right);
+   }
+   for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c,true);
+ }
  if(this.pit && signage){
    const lane=this.pit.surface(rows,this.road.material as T.Material);
    for(const [a,b,c] of kerbTops)this.pit.addFace(a,b,c,true);
@@ -112,7 +124,7 @@ export class SpaTrack {
  const edgeGeom=new T.BufferGeometry().setFromPoints(lines);this.edges=new T.LineSegments(edgeGeom,new T.LineBasicMaterial({color:0xaaa899,transparent:true,opacity:.45}));this.group.add(this.edges);
  // Selected curb ranges follow named corners; exact widths/placement are declared approximations.
 
- const cg=new T.BufferGeometry();cg.setAttribute('position',new T.Float32BufferAttribute(curbVertices,3));cg.setAttribute('color',new T.Float32BufferAttribute(curbColors,3));cg.setIndex(curbIndices);cg.computeVertexNormals();this.curbs=new T.Mesh(cg,new T.MeshStandardMaterial({vertexColors:true,roughness:.96,envMapIntensity:.14,side:T.DoubleSide}));this.group.add(this.curbs,this.markings);
+ const cg=new T.BufferGeometry();cg.setAttribute('position',new T.Float32BufferAttribute(curbVertices,3));cg.setAttribute('color',new T.Float32BufferAttribute(curbColors,3));cg.setIndex(curbIndices);cg.computeVertexNormals();this.curbs=new T.Mesh(cg,new T.MeshStandardMaterial({vertexColors:true,roughness:.96,envMapIntensity:.14,side:T.DoubleSide}));this.group.add(this.curbs,this.markings);this.markings.add(this.signs);
  // Painted strips have physical width, so they foreshorten with the road.
  const paint:number[]=[],colors:number[]=[];
  const stripe=(back:number,front:number,right:number,left:number,color:T.Color)=>{
@@ -138,17 +150,20 @@ export class SpaTrack {
  if(isSpa && signage)turnStations.forEach((station,index)=>{
    const plate=cornerPlate(index+1);
    const outside=this.curvature(station)>0?-1:1;
-   plate.position.copy(this.point(station,outside*(this.width(station,outside)+1.5)));
-   plate.quaternion.copy(this.pose(station).quaternion);plate.rotateY(Math.PI);this.markings.add(plate);
+   let offset=this.width(station,outside)+1.5;
+   // Clear the entire sign face and the pit approach at the Bus Stop.
+   while(this.pit && offset<60 && [-1,0,1].some(ds=>this.pit!.heightAt(this.point(station+ds,outside*offset),false)!==undefined))offset+=1;
+   plate.position.copy(this.point(station,outside*(offset+.6)));
+   plate.quaternion.copy(this.pose(station).quaternion);plate.rotateY(Math.PI);this.signs.add(plate);
  });
  if(signage)addBrakingBoards(this,id);
  this.group.name=isSpa?'Spa':'Circuit ribbon';
  }
  wrap(s:number){return ((s%this.length)+this.length)%this.length;}
- rawSample(s:number){const w=this.wrap(s),n=this.layout.nodes.length,t=w/this.length*n,i=Math.floor(t),f=t-i,a=this.layout.nodes[i],b=this.layout.nodes[(i+1)%n];return new T.Vector3(a.x+(b.x-a.x)*f,a.z+(b.z-a.z)*f,a.y+(b.y-a.y)*f);}
+ rawSample(s:number,target=new T.Vector3()){const w=this.wrap(s),n=this.layout.nodes.length,t=w/this.length*n,i=Math.floor(t),f=t-i,a=this.layout.nodes[i],b=this.layout.nodes[(i+1)%n];return target.set(a.x+(b.x-a.x)*f,a.z+(b.z-a.z)*f,a.y+(b.y-a.y)*f);}
  width(s:number,lateral=1){const i=Math.floor(this.wrap(s)/this.length*this.layout.nodes.length);return lateral>=0?this.layout.nodes[i].widthLeft:this.layout.nodes[i].widthRight;}
- point(s:number,lateral=0){const p=this.rawSample(s),f=this.rawSample(s+1).sub(this.rawSample(s-1));f.y=0;f.normalize();p.addScaledVector(new T.Vector3(-f.z,0,f.x),lateral);
- const node=this.layout.nodes[Math.floor(this.wrap(s)/this.length*this.layout.nodes.length)];p.y+=lateral*Math.tan((node.bankAngle??0)*Math.PI/180);p.sub(this.spawn);return new T.Vector3(p.dot(this.startLeft),p.y,p.dot(this.startForward));}
+ point(s:number,lateral=0,target=new T.Vector3()){const scratch=this.sampleScratch,p=this.rawSample(s,scratch.p),f=this.rawSample(s+1,scratch.a).sub(this.rawSample(s-1,scratch.b));f.y=0;f.normalize();p.addScaledVector(scratch.left.set(-f.z,0,f.x),lateral);
+ const node=this.layout.nodes[Math.floor(this.wrap(s)/this.length*this.layout.nodes.length)];p.y+=lateral*Math.tan((node.bankAngle??0)*Math.PI/180);p.sub(this.spawn);return target.set(p.dot(this.startLeft),p.y,p.dot(this.startForward));}
  curbSide(s:number){const band=this.curbBands.find(b=>s>=b.start && s<=b.end);return band?.side??0;}
  curbRise(station:number,contact:T.Vector3,across?:T.Vector3){
    // Strips are stored in station order. Only inspect triangles near this wheel.
@@ -158,14 +173,14 @@ export class SpaTrack {
      if(this.curbFaces[mid].s<=station-15)lo=mid+1;else hi=mid;
    }
    if(lo===this.curbFaces.length || this.curbFaces[lo].s>=station+15)return 0;
-   const point=new T.Vector3();
+   const point=this.curbPoint;
    const height=(fraction:number)=>{
      point.copy(contact);
      if(across)point.addScaledVector(across,fraction);
      point.y=0;
      for(let k=lo;k<this.curbFaces.length && this.curbFaces[k].s<station+15;k++)for(const [i,face] of this.curbFaces[k].faces.entries()){
        if(!face.containsPoint(point))continue;
-       const bary=face.getBarycoord(point,new T.Vector3());
+       const bary=face.getBarycoord(point,this.curbBary);
        if(bary){const h=this.curbFaces[k].heights[i];return bary.x*h[0]+bary.y*h[1]+bary.z*h[2];}
      }
      return 0;
@@ -173,8 +188,8 @@ export class SpaTrack {
    return across?.lengthSq()?(.25*height(-1)+.5*height(0)+.25*height(1)):height(0);
  }
  pose(s:number,lateral=0){const position=this.point(s,lateral),forward=this.point(s+2,lateral).sub(this.point(s-2,lateral)).normalize();const left=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(left).normalize();return {position,forward,quaternion:new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(left,up,forward))};}
- curvature(s:number){const a=this.point(s-6),b=this.point(s),c=this.point(s+6);const u=b.clone().sub(a),v=c.clone().sub(b);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.01,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
- setStyle(style:RoadStyle,under:boolean){const mat=this.road.material as T.MeshStandardMaterial;mat.transparent=under;mat.opacity=under?.08:1;mat.depthWrite=!under&&style!=='outline';this.road.visible=style!=='outline';mat.color.setHex(style==='clear'?0x292a2c:0x38393a);this.curbs.visible=!under;this.markings.visible=!under;(this.edges.material as T.LineBasicMaterial).opacity=under?.08:style==='outline'?.85:.35;}
+ curvature(s:number){const [a,b,c]=this.curveScratch;this.point(s-6,0,a);this.point(s,0,b);this.point(s+6,0,c);const v=c.sub(b),u=b.sub(a);return Math.atan2(v.x*u.z-v.z*u.x,u.x*v.x+u.z*v.z)/Math.max(.01,(Math.hypot(u.x,u.z)+Math.hypot(v.x,v.z))/2);}
+ setStyle(style:RoadStyle,under:boolean){if(style===this.lastStyle && under===this.lastUnder)return;this.lastStyle=style;this.lastUnder=under;const mat=this.road.material as T.MeshStandardMaterial;mat.transparent=under;mat.opacity=under?.08:1;mat.depthWrite=!under&&style!=='outline';this.road.visible=style!=='outline';mat.color.setHex(style==='clear'?0x292a2c:0x38393a);this.curbs.visible=!under;this.markings.visible=!under;(this.edges.material as T.LineBasicMaterial).opacity=under?.08:style==='outline'?.85:.35;}
  overview(){const c=this.bounds.getCenter(new T.Vector3()),size=this.bounds.getSize(new T.Vector3());return {target:c,position:c.clone().add(new T.Vector3(size.x*.25,Math.max(size.x,size.z)*1.3,Math.max(size.x,size.z)*.42))};}
  dispose(){(this.road.material as T.MeshStandardMaterial).map?.dispose();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.Line){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){if(o.name.startsWith("Brake board") || o.name==="Corner number")m.map?.dispose();m.dispose();}}});}
 }

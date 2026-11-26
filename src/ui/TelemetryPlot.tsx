@@ -1,10 +1,11 @@
 import {useEffect,useRef,useState} from 'react';
+import {Segments} from './Controls';
 import type {CruiseSnapshot} from '../motion/Cruise';
 
 const views={
- 驾驶:[['speed','车速','km/h',380],['throttle','油门','%',100],['brake','制动','%',100]],
+ 驾驶:[['speed','车速','km/h',380],['throttle','油门','%',100],['brake','刹车','%',100]],
  空力:[['wing','翼面开度','%',100],['front','前轴下压力','kN',16],['rear','后轴下压力','kN',20],['drag','阻力','kN',8]],
- 底盘:[['frontGap','前离地','mm',160],['rearGap','后离地','mm',160],['FL','左前轮载','kN',14],['FR','右前轮载','kN',14],['RL','左后轮载','kN',14],['RR','右后轮载','kN',14]]
+ 底盘:[['frontGap','前底盘高度','mm',160],['rearGap','后底盘高度','mm',160],['FL','左前负荷','kN',14],['FR','右前负荷','kN',14],['RL','左后负荷','kN',14],['RR','右后负荷','kN',14]]
 } as const;
 type View=keyof typeof views;
 type Channel=typeof views[View][number][0];
@@ -15,7 +16,7 @@ const windowM=400;
 export function TelemetryPlot({data}:{data:CruiseSnapshot}){
  const [samples,setSamples]=useState<Point[]>([]);
  const laps=useRef({lap:0,previous:new Map<number,Point>(),current:new Map<number,Point>()});
- const [view,setView]=useState<View>('驾驶');
+ const [view,setView]=useState<View>('驾驶'),[collapsed,setCollapsed]=useState(false);
  useEffect(()=>{
    if(data.status==='idle'){laps.current.current.clear();laps.current.previous.clear();laps.current.lap=0;setSamples(old=>old.length?[]:old);return;}
    if(data.status!=='running')return;
@@ -38,23 +39,25 @@ export function TelemetryPlot({data}:{data:CruiseSnapshot}){
      return [...old.filter(p=>p.d>=point.d-windowM),point];
    });
  },[data]);
- const end=samples.at(-1),channels=views[view],height=17+31*channels.length;
- return <details className="trace-panel"><summary>遥测曲线 <small>400 m</small></summary>
- <select aria-label="遥测通道" value={view} onChange={e=>setView(e.target.value as View)}>{Object.keys(views).map(v=><option key={v}>{v}</option>)}</select>
- <svg viewBox={'0 0 228 '+height} role="img" aria-label={'最近 400 米的'+view+'遥测'}>
+ const end=samples.at(-1),channels=views[view];
+ const x=(p:Point)=>8+584*(1-((end?.d??0)-p.d)/windowM);
+ const y=(value:number,max:number)=>116-104*Math.max(0,Math.min(1,value/max));
+ if(collapsed)return <button className="telemetry-reopen" onClick={()=>setCollapsed(false)} aria-expanded={false}>⌃ 实时遥测</button>;
+ return <aside className="telemetry-ribbon" aria-label="实时遥测">
+ <button className="telemetry-close" aria-label="收起实时遥测" onClick={()=>setCollapsed(true)}>收起 ⌄</button><div className="telemetry-readings"><Segments label="遥测通道" value={view} change={setView} options={[["驾驶","车速/踏板"],["空力","气动"],["底盘","底盘"]]}/>
+ <div className="telemetry-values">{channels.map(([key,name,unit],i)=><div key={key} style={{color:colors[i]}}><span>{name}</span><b>{end?end[key].toFixed(unit==='kN'?1:0):'0'} <small>{unit}</small></b></div>)}</div></div>
+ <div className="telemetry-chart"><svg viewBox="0 0 600 124" preserveAspectRatio="none" role="img" aria-label={'最近 400 米的'+view+'遥测；各通道按量程归一化'}>
+ {[12,64,116].map(v=><path key={v} d={`M8 ${v}H592`} stroke="white" strokeOpacity=".12" vectorEffect="non-scaling-stroke"/>)}
+ <path d="M592 8V120" stroke="#e3f3ff" strokeOpacity=".65" vectorEffect="non-scaling-stroke"/>
  {channels.map(([key,name,unit,max],i)=>{
-   const y=9+31*i;
-   const points=samples.map(p=>[60+162*(1-(end!.d-p.d)/windowM),y+21-20*Math.max(0,Math.min(1,p[key]/max))].join(',')).join(' ');
-   let comparison='',continuous=false;
-   if(data.phase==='timed')for(const sample of samples){
-     const prior=laps.current.previous.get(Math.floor(sample.station/10));
-     if(!prior){continuous=false;continue;}
-     comparison+=(continuous?'L':'M')+(60+162*(1-(end!.d-sample.d)/windowM))+','+(y+21-20*Math.max(0,Math.min(1,prior[key]/max)));
-     continuous=true;
-   }
-   return <g key={key}><text x="4" y={y+7}>{name}</text><text x="4" y={y+19} fill={colors[i]}>{end?end[key].toFixed(unit==='kN'?1:0):'—'} {unit}</text>
-    <path d={'M60 '+(y+21)+'h162'} stroke="#625f57"/><path d={comparison} fill="none" stroke={colors[i]} opacity=".45" strokeDasharray="2 2"><title>上一计时圈 · 同一赛道位置</title></path><polyline points={points} fill="none" stroke={colors[i]} strokeWidth="1.5"/></g>;
+ const points=samples.map(p=>`${x(p)},${y(p[key],max)}`).join(' ')||'8,116 592,116';
+ let comparison='',continuous=false;
+ if(data.phase==='timed')for(const sample of samples){const prior=laps.current.previous.get(Math.floor(sample.station/10));if(!prior){continuous=false;continue;}comparison+=(continuous?'L':'M')+x(sample)+','+y(prior[key],max);continuous=true;}
+ return <g key={key}><title>{name} · 0–{max} {unit}</title><defs><linearGradient id={'ribbon-fill-'+key} x1="0" y1="0" x2="0" y2="1"><stop stopColor={colors[i]} stopOpacity=".13"/><stop offset="1" stopColor={colors[i]} stopOpacity="0"/></linearGradient></defs>
+ <polygon points={`${points} 592,116 ${samples.length?x(samples[0]):8},116`} fill={'url(#ribbon-fill-'+key+')'}/>
+ <path d={comparison} fill="none" stroke={colors[i]} opacity=".3" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/>
+ <polyline className="telemetry-wave" points={points} fill="none" stroke={colors[i]} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity={end?1:.35}/>
+ <circle cx="592" cy={end?y(end[key],max):116} r="2.5" fill={colors[i]}/></g>;
  })}
- <g fill="#aaa79c"><text x="60" y={height-4}>−400 m</text><text x="222" y={height-4} textAnchor="end">0 m</text></g>
- </svg></details>;
+ </svg><div className="telemetry-ruler"><span>−400 m</span><span>−200 m</span><span>0 m</span></div></div></aside>;
 }

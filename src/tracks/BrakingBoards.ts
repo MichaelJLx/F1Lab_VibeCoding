@@ -1,11 +1,12 @@
 import * as T from 'three';
+import {straightModeZone} from '../motion/ActiveAero';
 import type {SpaTrack} from './SpaTrack';
 
 // Entry stations are registered to our ribbon, not survey coordinates.
 // Side is in the direction of travel. Data provenance is in README.
 type Approach={entry:number; sides:number[]; distances:number[]; blue?:boolean};
 const approaches:Record<string,Approach[]>={
- spa:[{entry:6550,sides:[1,-1],distances:[200,150,100,50]}],
+ spa:[150,2200,2820,4260,6550].map(entry=>({entry,sides:[1],distances:[150,100,50]})),
  'it-1922':[
    {entry:610,sides:[1],distances:[100]},
    {entry:1825,sides:[-1],distances:[100]},
@@ -18,6 +19,24 @@ const approaches:Record<string,Approach[]>={
  'sa-2021':[{entry:5518,sides:[1,-1],distances:[100],blue:true}]
 };
 export function addBrakingBoards(track:SpaTrack,id:string){
+ if(id==='spa'){
+   let previous=straightModeZone(track.length-1,track.length);
+   for(let s=0;s<track.length;s++){
+     const zone=straightModeZone(s,track.length);
+     if(zone!==previous){
+       const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;
+       const ctx=canvas.getContext('2d')!;
+       ctx.fillStyle='#282724';ctx.fillRect(0,0,256,96);ctx.fillStyle=zone?'#ff9000':'#fffaf0';
+       ctx.font='bold 38px sans-serif';ctx.fillText(zone?'SLM ON':'SLM END',12,62);
+       const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
+       const board=new T.Mesh(new T.PlaneGeometry(1.6,.6),new T.MeshBasicMaterial({map}));
+       board.position.copy(track.point(s,track.width(s)+2));board.position.y+=1.1;
+       const forward=track.pose(s).forward;board.rotation.y=Math.atan2(-forward.x,-forward.z);
+       track.signs.add(board);
+     }
+     previous=zone;
+   }
+ }
  for(const approach of approaches[id]??[])for(const distance of approach.distances){
    const canvas=document.createElement('canvas');
    canvas.width=192;canvas.height=112;
@@ -37,7 +56,7 @@ export function addBrakingBoards(track:SpaTrack,id:string){
      const post=new T.Mesh(new T.BoxGeometry(.065,.75,.065),new T.MeshStandardMaterial({color:0x696966}));
      post.position.copy(board.position);post.position.y-=.37;
      post.position.addScaledVector(forward,.06);
-     track.markings.add(board,post);
+     track.signs.add(board,post);
    }
  }
 }

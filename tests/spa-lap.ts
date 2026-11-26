@@ -7,6 +7,7 @@ import {Box3,InstancedMesh,Matrix4,Ray,Vector3} from 'three';
 import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
 import {turnStations} from '../src/tracks/SpaMarkers';
 import {RacingLine} from '../src/optimizer/RacingLine';
+import {Gearbox} from '../src/motion/Gearbox';
 import {Tyre} from '../src/motion/Tyre';
 import {nominalGap,platformForces} from '../src/motion/AeroPlatform';
 import {Suspension} from '../src/motion/Suspension';
@@ -49,6 +50,20 @@ assert.ok(slick.locked && Math.max(...slick.wear)>0 && slick.pressure>160);
 const damage=Math.max(...slick.wear),hot=Math.max(...slick.heat);
 for(let i=0;i<1200;i++)slick.step(1/240,0,0,4000,2400);
 assert.equal(Math.max(...slick.wear),damage);assert.ok(Math.max(...slick.heat)<hot*.05);
+// Optional consumption must affect both available drive and tyre grip.
+const battery=new Gearbox();battery.consumption=true;
+for(let i=0;i<1000;i++){const force=battery.update(.1,70);battery.account(70,force,.1,0);}
+assert.ok(battery.energy<5e6);
+const depleted=battery.update(.01,70);battery.consumption=false;
+assert.ok(battery.update(.01,70)>=depleted);
+battery.account(70,0,.01,0);assert.equal(battery.energy,5e6);
+const worn=new Tyre(.35);worn.wearEnabled=true;worn.lateralG=4;worn.omega=60/.35;
+for(let i=0;i<1000;i++)worn.step(.01,60,0,4000,4000);
+assert.ok(worn.degradation>0 && worn.grip<1);
+worn.wearEnabled=false;assert.equal(worn.grip,1);
+const brakingPlatform=new Suspension(800,1.75,1.636);
+for(let i=0;i<240;i++)brakingPlatform.step(1/240,0,-30,0,0);
+assert.ok(brakingPlatform.loads.FL>brakingPlatform.loads.RL);
 // Only label canvases need a DOM; road geometry and the driving model run normally.
 Object.assign(globalThis,{document:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});
 const track=new SpaTrack(),car=new Cruise(track,new RacingLine(track));
@@ -107,10 +122,19 @@ let kemmelSamples=0,kemmelFullThrottle=0;
 for(let frame=0;frame<18000*(car.lapCount+2) && car.status==='running';frame++){
  const lap=car.lap,station=car.s,time=car.elapsed;
  car.tick(1/60);
+ if(car.timed && car.lap!==lap){
+   assert.equal(car.comparisons.length,8);
+   car.comparisons.forEach((runs,i)=>{
+     assert.equal(runs.length,27);
+     if(car.lap===2)console.log('Corner trial',i,runs.map(r=>[r.cut,r.late,+r.time.toFixed(3),+r.exit.toFixed(2),Math.round(r.brake),r.kerb,r.valid].join('/')).join(' '));
+   });
+ }
  if(car.lap!==lap)assert.equal(car.snapshot().power.energy,1);
  if(car.lap===1 && car.s<835 || car.lastLap && car.s-track.length>=-420)assert.equal(car.aeroZone,0,'pit route cannot activate straight mode');
  if(car.lap===1 && car.s>160 && car.s<300)assert.ok(Math.min(car.dynamics.tyres.FR.omega,car.dynamics.tyres.RR.omega)>0);
- if(car.timed && car.s>=0 && car.s<50)crossingBrake=Math.max(crossingBrake,car.gearbox.brake);
+ if(car.timed && car.s>=0 && car.s<50){
+   crossingBrake=Math.max(crossingBrake,car.gearbox.brake);
+ }
  if(car.timed && car.s>200 && car.s<280 && car.dynamics.suspension.surfaceGrip.FR<.99)t1Kerb++;
  if(car.timed && car.racePath.points!==previousLine){
    if(previousLine)lineChange=Math.max(lineChange,...previousLine.map((p,i)=>p.distanceTo(car.racePath.points[i])));

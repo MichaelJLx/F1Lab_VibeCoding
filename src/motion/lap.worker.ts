@@ -9,5 +9,5 @@ self.onmessage=({data}:{data:{generation:number,request:PlanRequest}})=>{
     planner=new Cruise(track,new RacingLine(track));
   }
   const plan=planner.planLap(data.request);
-  self.postMessage({generation:data.generation,plan},{transfer:[plan.vertices.buffer,plan.indices.buffer]});
+  self.postMessage({generation:data.generation,plan},{transfer:[plan.vertices.buffer,plan.stations.buffer,plan.indices.buffer]});
 };

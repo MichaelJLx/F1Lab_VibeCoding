@@ -24,12 +24,12 @@ export class PitLane {
 
    // Continue from the surveyed exit tangent into the near edge of the main straight.
    // Keep the paved connector separate from the subsequent move to the racing line.
-   const join=398,end=490,start=this.point(join);
+   const join=379,end=490,start=this.point(join);
    const dir=this.point(join).sub(this.point(join-5)).normalize();
    const centre=track.point(end),axis=track.point(end+1).sub(track.point(end-1)).normalize();
    const left=new T.Vector3(axis.z,0,-axis.x).normalize();
    const side=Math.sign(start.clone().sub(track.point(join)).dot(left));
-   const dest=centre.addScaledVector(left,side*(track.width(end,side)-halfWidth-.6));
+   const dest=centre.addScaledVector(left,side*(track.width(end,side)-halfWidth-.3));
    const span=start.distanceTo(dest);
    for(let s=join+1;s<=end;s++){
      const t=(s-join)/(end-join),u=1-t;
@@ -106,7 +106,7 @@ export class PitLane {
        this.mainHeightNear(foot)===undefined ? foot : undefined;
    };
    let previous:T.Vector3|undefined;
-   for(let s=-420;s<=490;s+=4){
+   for(let s=-340;s<=490;s+=4){
      const next=row(s);
      if(next)posts.push(next);
      if(previous && next){
@@ -158,7 +158,9 @@ export class PitLane {
  private edges(s:number){
    const center=this.point(s),dir=this.point(s+1).sub(this.point(s-1));
    const left=new T.Vector3(dir.z,0,-dir.x).normalize();
-   return {left,inner:center.clone().addScaledVector(left,halfWidth),outer:center.clone().addScaledVector(left,-halfWidth)};
+   // Taper the outlet only after its wheels are supported by the main road.
+   const width=halfWidth*T.MathUtils.smootherstep(s,-378,-357)*(1-.75*T.MathUtils.smootherstep(s,420,490));
+   return {left,inner:center.clone().addScaledVector(left,width),outer:center.clone().addScaledVector(left,-width)};
  }
  surface(rows:{s:number,left:T.Vector3,right:T.Vector3}[],asphalt:T.Material){
    const pos:number[]=[],uv:number[]=[],paint:number[]=[],colors:number[]=[];
@@ -196,7 +198,13 @@ export class PitLane {
              const q=inside[(j+1)%inside.length],dp=d(p),dq=d(q);
              if(dp>=0)keep.push(p);
              if(dp<=0)outside.push(p);
-             if(dp*dq<0){const cut=p.clone().lerp(q,dp/(dp-dq));keep.push(cut);outside.push(cut);}
+             if(dp*dq<0){const cut=p.clone().lerp(q,dp/(dp-dq));
+               // Match the elevation only on the finite main-road edge. The
+               // clipping half-plane can also intersect far beyond its endpoints.
+               const dx=v.x-u.x,dz=v.z-u.z;
+               const along=((cut.x-u.x)*dx+(cut.z-u.z)*dz)/(dx*dx+dz*dz);
+               if(along>=0 && along<=1)cut.y=T.MathUtils.lerp(u.y,v.y,along);
+               keep.push(cut);outside.push(cut);}
            });
            if(outside.length>=3)remaining.push(outside);
            inside=keep;
@@ -213,7 +221,7 @@ export class PitLane {
        }
      }
    };
-   for(let s=-420;s<490;s++){
+   for(let s=-378;s<490;s++){
      const a=this.edges(s),b=this.edges(s+1);
      emit([a.inner,b.inner,a.outer]);emit([a.outer,b.inner,b.outer]);
      for(const side of [-1,1]){

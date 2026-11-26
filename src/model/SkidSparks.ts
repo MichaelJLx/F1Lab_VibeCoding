@@ -12,6 +12,7 @@ export class SkidSparks {
  private glowGeometry=new T.BufferGeometry();
  private cursor=0;
  private remainder=0;
+ private contact=new T.Vector3();private hit=new T.Vector3();
  constructor(scale:number){
    const colors=new Float32Array(slots*6);
    for(let i=0;i<slots;i++)colors.set([1,.83,.40,1,.25,.025],i*6);
@@ -46,9 +47,9 @@ export class SkidSparks {
      chassis.updateWorldMatrix(true,false);
      let depth=0,hit:T.Vector3|undefined;
      for(const block of this.blocks){
-       const p=block.clone().applyMatrix4(chassis.matrixWorld).divideScalar(scale);
+       const p=this.contact.copy(block).applyMatrix4(chassis.matrixWorld).divideScalar(scale);
        const height=track.pit?.heightAt(p);
-       if(height!==undefined && height-p.y>depth){depth=height-p.y;hit=p;hit.y=height+.001;}
+       if(height!==undefined && height-p.y>depth){depth=height-p.y;hit=this.hit.copy(p);hit.y=height+.001;}
      }
      if(hit){
        const severity=Math.min(1,depth/.012);
