@@ -7,7 +7,9 @@ import {createFlowSolver} from '../src/model/FlowSolver';
 import {Gearbox} from '../src/motion/Gearbox';
 import {LateralDynamics} from '../src/motion/LateralDynamics';
 import {steps,seeds,ribbonVertices} from '../src/model/FlowLayout';
-import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
+import {CircuitTrack} from '../src/tracks/CircuitTrack';
+import {circuitData} from '../src/tracks/CircuitRegistry';
+const circuit=circuitData('be-1925');
 import {RibbonFrame} from '../src/model/RibbonFrame';
 
 test('parallel transport stays orthonormal without sign flips through vertical and inflection tangents',()=>{
@@ -69,13 +71,13 @@ test('flow solves reuse buffers and respond to steering, yaw and wing opening',(
 
 test('allocation-free road queries retain position and curvature results',()=>{
  // Geometry queries need no canvas or full road construction.
- const track=Object.assign(Object.create(SpaTrack.prototype),{
-   layout:spaData,length:spaData.geometryLength,spawn:new T.Vector3(14,2,7),startForward:new T.Vector3(.6,0,.8),startLeft:new T.Vector3(-.8,0,.6),
+ const track=Object.assign(Object.create(CircuitTrack.prototype),{
+   layout:circuit,length:circuit.geometryLength,spawn:new T.Vector3(14,2,7),startForward:new T.Vector3(.6,0,.8),startLeft:new T.Vector3(-.8,0,.6),
    sampleScratch:{a:new T.Vector3(),b:new T.Vector3(),p:new T.Vector3(),left:new T.Vector3()},curveScratch:[new T.Vector3(),new T.Vector3(),new T.Vector3()]
- }) as SpaTrack;
+ }) as CircuitTrack;
  const original=(s:number,lateral=0)=>{
    const p=track.rawSample(s),f=track.rawSample(s+1).sub(track.rawSample(s-1));f.y=0;f.normalize();p.addScaledVector(new T.Vector3(-f.z,0,f.x),lateral);
-   const node=spaData.nodes[Math.floor(track.wrap(s)/track.length*spaData.nodes.length)];
+   const node=circuit.nodes[Math.floor(track.wrap(s)/track.length*circuit.nodes.length)];
    p.y+=lateral*Math.tan((node.bankAngle??0)*Math.PI/180);p.sub(track.spawn);
    return new T.Vector3(p.dot(track.startLeft),p.y,p.dot(track.startForward));
  };

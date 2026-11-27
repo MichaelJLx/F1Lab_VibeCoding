@@ -10,9 +10,10 @@
     "model:build": "node scripts/model/prepare-model.mjs",
     "test": "node --test tests/*.test.mjs",
     "rig:build": "node scripts/model/build-wheel-rig.mjs",
-    "line:build": "node scripts/tracks/build-racing-line.mjs",
-    "test:spa": "node tests/run-spa-lap.mjs",
-    "test:circuits": "node tests/run-circuits.mjs"
+    "test:circuits": "node tests/run-circuits.mjs",
+    "test:reference": "node tests/run-reference-lap.mjs",
+    "tracks:build": "node scripts/tracks/build-circuits.mjs",
+    "tracks:check": "node scripts/tracks/build-circuits.mjs --check"
   },
   "dependencies": {
     "react": "^19.0.0",

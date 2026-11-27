@@ -1,11 +1,7 @@
 import * as T from 'three';
-import type {SpaTrack} from './SpaTrack';
+import type {CircuitTrack} from './CircuitTrack';
 
-// Entry stations are registered to our ribbon, not survey coordinates.
-// Side is in the direction of travel. Data provenance is in README.
-type Approach={entry:number; sides:number[]; distances:number[]; blue?:boolean};
-const spaApproaches:Approach[]=[150,2200,2820,4260,6550].map(entry=>({entry,sides:[1],distances:[150,100,50]}));
-export function addBrakingBoards(track:SpaTrack,id:string){
+export function addBrakingBoards(track:CircuitTrack){
  const pit=track.pit;
  if(pit)for(const [station,label] of [[pit.limitEntry,String(pit.speedLimit)],[pit.limitExit,'END']] as const){
    const canvas=document.createElement('canvas');canvas.width=192;canvas.height=128;
@@ -38,13 +34,13 @@ export function addBrakingBoards(track:SpaTrack,id:string){
      previous=zone;
    }
  }
- const entries=id==='spa'?spaApproaches:track.profile.groups.filter(g=>Math.abs(track.curvature(track.profile.turns[g.turn],18))>.007).map(g=>({entry:Math.max(0,track.profile.turns[g.turn]-70),sides:[1],distances:[150,100,50]} as Approach));
+ const entries=track.layout.driving.brakeApproaches.map(entry=>({entry,sides:[1],distances:[150,100,50]}));
  for(const approach of entries)for(const distance of approach.distances){
    const canvas=document.createElement('canvas');
    canvas.width=192;canvas.height=112;
    const ctx=canvas.getContext('2d')!;
-   ctx.fillStyle=approach.blue?'#183c81':'#f6f6ee';ctx.fillRect(0,0,192,112);
-   ctx.fillStyle=approach.blue?'white':'#171819';ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.fillStyle='#f6f6ee';ctx.fillRect(0,0,192,112);
+   ctx.fillStyle='#171819';ctx.textAlign='center';ctx.textBaseline='middle';
    ctx.font='bold 84px sans-serif';ctx.fillText(String(distance),96,59);
    const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
    const material=new T.MeshBasicMaterial({map});
@@ -61,4 +57,22 @@ export function addBrakingBoards(track:SpaTrack,id:string){
      track.signs.add(board,post);
    }
  }
+}
+
+export function cornerPlate(number:number){
+  const canvas=document.createElement('canvas');
+  canvas.width=192;canvas.height=96;
+  const ctx=canvas.getContext('2d')!;
+  ctx.fillStyle='#282724';ctx.fillRect(0,0,192,96);
+  ctx.fillStyle='#ff9000';ctx.fillRect(0,0,9,96);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='600 32px system-ui';ctx.fillText('T',40,49);
+  ctx.fillStyle='#fffaf0';ctx.font='bold 70px system-ui';
+  ctx.fillText(String(number).padStart(2,'0'),119,50);
+  const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
+  const group=new T.Group(),plate=new T.Mesh(new T.BoxGeometry(1.8,.9,.065),new T.MeshBasicMaterial({color:0x282724}));
+  const face=new T.Mesh(new T.PlaneGeometry(1.8,.9),new T.MeshBasicMaterial({map}));
+  face.name="Corner number";face.position.z=.034;plate.add(face);plate.position.y=.98;
+  const post=new T.Mesh(new T.BoxGeometry(.09,.56,.09),new T.MeshStandardMaterial({color:0x67645d}));
+  post.position.y=.28;group.add(plate,post);return group;
 }

@@ -2,12 +2,12 @@
 import json, subprocess, xml.etree.ElementTree as ET
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
-pits = json.loads((root/'src/tracks/circuit-pits.json').read_text())
+pits = {p.stem.removesuffix('-map'): json.loads(p.read_text()) for p in (root/'data/tracks/pit-lanes').glob('*-map.json')}
 folder = root/'data/tracks/pit-lanes'
 folder.mkdir(parents=True, exist_ok=True)
 for key, pit in pits.items():
     ways = []
-    for way_id in pit['ways']:
+    for way_id in [w['id'] for w in pit['elements']]:
         url = f'https://api.openstreetmap.org/api/0.6/way/{way_id}/full'
         raw = subprocess.check_output(['curl', '-LsS', '--fail', '--max-time', '45', url])
         tree = ET.fromstring(raw)

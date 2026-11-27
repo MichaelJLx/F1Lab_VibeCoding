@@ -34,7 +34,7 @@ export class TyreSmoke{
      const wheel=wheels[k],power=cruise.dynamics.tyres[k].smokePower;
      if(!wheel || power<=1000){this.remainder[k]=0;continue;}
      wheel.pivot.getWorldPosition(this.contact).divideScalar(scale);this.contact.y-=wheel.radius;
-     const road=cruise.track.pit?.heightAt(this.contact);if(road===undefined)continue;
+     const road=cruise.track.getSurfaceHeightAt(this.contact);if(road===undefined)continue;
      this.contact.y=road+.025;
      const strength=Math.min(1,power/180000);
      this.remainder[k]+=dt*Math.min(100,power/1800);

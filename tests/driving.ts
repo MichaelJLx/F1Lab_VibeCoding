@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {Cruise} from '../src/motion/Cruise';
 import {DriverMemory} from '../src/motion/DriverMemory';
-import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
+import {CircuitTrack} from '../src/tracks/CircuitTrack';
+import {circuitData} from '../src/tracks/CircuitRegistry';
+const circuit=circuitData('be-1925');
 import {RacingLine} from '../src/optimizer/RacingLine';
 import {Gearbox} from '../src/motion/Gearbox';
 const stored=new Map<string,string>();
 Object.assign(globalThis,{localStorage:{getItem:(key:string)=>stored.get(key)??null,setItem:(key:string,value:string)=>stored.set(key,value)},
  document:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});
-const track=new SpaTrack();
+const track=new CircuitTrack(circuit);
 function driver(){stored.clear();const car=new Cruise(track,new RacingLine(track));car.lapCount=3;car.lap=2;return car;}
 
 test('different T4/T5 strategies join without a false steering reversal on Kemmel',()=>{
@@ -17,7 +19,7 @@ test('different T4/T5 strategies join without a false steering reversal on Kemme
    const weights=Array(19).fill(0);weights[3]=pair[0];weights[4]=pair[1];car.setPath(weights);
    let peak=0,jump=0,previous=0;
    for(let s=1680;s<=1720;s++){
-     const k=car.curvature(s-spaData.grid.s);
+     const k=car.curvature(s-circuit.grid.s);
      peak=Math.max(peak,Math.abs(k));if(s>1680)jump=Math.max(jump,Math.abs(k-previous));previous=k;
    }
    assert.ok(peak<.0004,`false chicane curvature ${peak}`);
@@ -27,16 +29,16 @@ test('different T4/T5 strategies join without a false steering reversal on Kemme
 
 test('old controller learning cannot impose stale braking limits; history survives',()=>{
  stored.clear();const laps=[{date:1,sectors:[29,46,30]}];
- stored.set('f1lab.spa.driver.v1',JSON.stringify({laps,corners:Array.from({length:19},()=>({time:8,line:1,pickup:.5,caution:1})),slides:[{station:1700,speed:30,safeSpeed:28}]}));
- const memory=new DriverMemory();
+ stored.set(circuit.driving.memoryKey,JSON.stringify({laps,corners:Array.from({length:19},()=>({time:8,line:1,pickup:.5,caution:1})),slides:[{station:1700,speed:30,safeSpeed:28}]}));
+ const memory=new DriverMemory(circuit.driving.memoryKey,circuit.driving.turns.length,circuit.driving.groups.length);
  assert.deepEqual(memory.laps,laps);assert.equal(memory.slides.length,0);
  assert.ok(memory.corners.every(c=>c.caution===0 && c.line===0));
  memory.recordSlide(2330,45);
- assert.deepEqual(new DriverMemory().slides,memory.slides,'current confirmed learning survives reload');
+ assert.deepEqual(new DriverMemory(circuit.driving.memoryKey,circuit.driving.turns.length,circuit.driving.groups.length).slides,memory.slides,'current confirmed learning survives reload');
 });
 
 test('brief yaw transients do not poison next-lap speeds; sustained incidents still do',()=>{
- const car=driver(),internal=car as any;car.distance=2330-spaData.grid.s;car.speed=45;
+ const car=driver(),internal=car as any;car.distance=2330-circuit.grid.s;car.speed=45;
  for(let frame=0;frame<20;frame++){
    for(let i=0;i<12;i++)internal.observeIncident('oversteer',1/240);
    internal.observeIncident(undefined,1/240);
@@ -50,7 +52,7 @@ test('brief yaw transients do not poison next-lap speeds; sustained incidents st
 });
 
 test('cruise or reduced pace cannot write a low-speed racing constraint',()=>{
- const car=driver(),internal=car as any;car.speed=20;car.distance=1700-spaData.grid.s;
+ const car=driver(),internal=car as any;car.speed=20;car.distance=1700-circuit.grid.s;
  for(const limited of [true,false]){
    car.limitKmh=limited?60:Infinity;car.pace=limited?1:.94;
    for(let i=0;i<240;i++)internal.observeIncident('oversteer',1/240);
@@ -63,7 +65,7 @@ test('line switches are independent scene visibility and leave driving bit-for-b
  for(const car of [a,b]){
    car.planWorker={postMessage(){}} as unknown as Worker;
    car.setPath(Array(19).fill(0));car.buildSpeedPlan();car.showPlan();
-   car.distance=1600-spaData.grid.s;car.speed=70;car.status='running';
+   car.distance=1600-circuit.grid.s;car.speed=70;car.status='running';
    for(const tyre of Object.values(car.dynamics.tyres))tyre.omega=70/tyre.radius;
    car.line.setAlternatives([0,0,0,0,0,5]);
  }
@@ -82,18 +84,18 @@ test('selected and alternative paths sit above the rendered road and have usable
  const g=car.line.mesh.geometry,p=g.getAttribute('position');
  assert.ok(p.count>100 && g.getAttribute('color').count===p.count);
  for(let i=0;i<p.count;i+=29){
-   const point=car.line.mesh.position.clone().fromBufferAttribute(p,i),road=track.pit!.heightAt(point);
+   const point=car.line.mesh.position.clone().fromBufferAttribute(p,i),road=track.getSurfaceHeightAt(point);
    if(road!==undefined)assert.ok(Math.abs(point.y-road-.03)<.0001,`wrong surface clearance at vertex ${i}`);
  }
- const a=track.point(1700),b=track.point(1705);car.line.setAlternatives([...a.toArray(),...b.toArray()]);
+ car.line.setVisible(true,true);const a=track.point(1700),b=track.point(1705);car.line.setAlternatives([...a.toArray(),...b.toArray()]);
  const alt=car.line.alternatives.geometry.getAttribute('position');
- assert.ok(Math.abs(alt.getY(0)-(track.pit!.heightAt(a)??a.y)-.03)<.0001);assert.ok(car.line.alternatives.geometry.getAttribute('lineDistance'));
+ assert.ok(Math.abs(alt.getY(0)-(track.getSurfaceHeightAt(a)??a.y)-.03)<.0001);assert.ok(car.line.alternatives.geometry.getAttribute('lineDistance'));
  car.reset();assert.equal(car.line.alternatives.geometry.getAttribute('position').count,0,'no stale candidates after reset');
 });
 
 function runningAt(car:Cruise,s:number,speed=40){
  car.planWorker={postMessage(){}} as unknown as Worker;
- car.distance=s-spaData.grid.s;car.speed=speed;car.status='running';car.accumulator=0;
+ car.distance=s-circuit.grid.s;car.speed=speed;car.status='running';car.accumulator=0;
  car.dynamics.reset();for(const tyre of Object.values(car.dynamics.tyres))tyre.omega=speed/tyre.radius;
  car.setPath(Array(19).fill(0));car.buildSpeedPlan();
 }
@@ -121,7 +123,7 @@ test('four wheels outside trigger recovery without refilling resources or counti
  assert.equal(car.travelled,travelled,'relocation is not driven distance');
  const resetPosition=car.pose().position,centre=track.point(car.s);
  assert.ok(Math.hypot(resetPosition.x-centre.x,resetPosition.z-centre.z)<1e-6,'reset on centreline');
- assert.ok(Math.abs(resetPosition.y-track.pit!.heightAt(resetPosition,false)!)<1e-6,'supported by rendered road');
+ assert.ok(Math.abs(resetPosition.y-track.getSurfaceHeightAt(resetPosition,false)!)<1e-6,'supported by rendered road');
  assert.equal(car.dynamics.offset,0);assert.equal(car.dynamics.headingError,0);
  assert.equal(car.gearbox.energy,2e6);assert.equal(car.dynamics.tyres.FL.degradation,.25);
  assert.equal(car.dynamics.tyres.FL.temperature,105);assert.equal(car.dynamics.tyres.FL.wear[3],0);
@@ -131,12 +133,12 @@ test('four wheels outside trigger recovery without refilling resources or counti
  for(let i=0;i<1200 && car.s<1840;i++){car.tick(1/60);assert.equal(car.recovering,false,'rejoin must not cause another recovery');}
  assert.ok(car.s>=1840,'smoothly rejoined the selected route');
  // Finish the invalid attempt; the next attempt must still be flying lap 1.
- (car as any).rejoin=undefined;runningAt(car,spaData.grid.s+track.length-.1,25);
+ (car as any).rejoin=undefined;runningAt(car,circuit.grid.s+track.length-.1,25);
  for(let i=0;i<5&&car.invalidLap;i++)car.tick(1/60);
  assert.equal(car.invalidLap,false);assert.equal(car.lap,2);assert.equal(car.history.length,0);
  assert.equal(car.snapshot().validLaps,0);assert.equal(car.snapshot().lap,1);
  // A subsequent valid completion is accepted and only then starts the in-lap.
- runningAt(car,spaData.grid.s+track.length-.1,25);car.elapsed=105;car.splits=[29,75];
+ runningAt(car,circuit.grid.s+track.length-.1,25);car.elapsed=105;car.splits=[29,75];
  car.tick(1/60);
  assert.equal(car.history.length,1);assert.equal(car.lastLap,true);assert.equal(car.snapshot().validLaps,1);
  assert.equal(car.gearbox.deploymentAllowed,false);assert.equal(car.wingTravel,0);assert.equal(car.gearbox.electricKw,0);
@@ -180,6 +182,6 @@ test('a pit-area recovery stays on the main road without snapping back across th
  assert.ok(car.recovering);
  const end=(car as any).rejoin.end;
  assert.ok(car.point(end-.01).distanceTo(car.point(end+.01))<.05);
- const expected=car.racePath.getPoint(track.wrap(spaData.grid.s+end)/track.length);
+ const expected=car.racePath.getPoint(track.wrap(circuit.grid.s+end)/track.length);
  assert.ok(car.point(end).distanceTo(expected)<1e-6);
 });

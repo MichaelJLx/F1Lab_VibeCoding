@@ -14,12 +14,12 @@ const colors=['#ffad4c','#72ca9c','#eb786b','#8ec7e8','#c6a2e8','#bfc9d0'];
 const windowM=400;
 
 export function TelemetryPlot({data,circuitId}:{data:CruiseSnapshot;circuitId?:string}){
- const [samples,setSamples]=useState<Point[]>([]);
+ const history=useRef<Point[]>([]);const [,refresh]=useState(0);const samples=history.current;
  const laps=useRef({lap:0,previous:new Map<number,Point>(),current:new Map<number,Point>()});
- const [view,setView]=useState<View>('驾驶'),[collapsed,setCollapsed]=useState(false);
- useEffect(()=>{setSamples([]);laps.current={lap:0,previous:new Map(),current:new Map()};},[circuitId]);
+ const [view,setView]=useState<View>('驾驶'),[collapsed,setCollapsed]=useState(true);
+ useEffect(()=>{setCollapsed(true);history.current=[];laps.current={lap:0,previous:new Map(),current:new Map()};},[circuitId]);
  useEffect(()=>{
-   if(data.status==='idle'){laps.current.current.clear();laps.current.previous.clear();laps.current.lap=0;setSamples(old=>old.length?[]:old);return;}
+   if(data.status==='idle'){laps.current.current.clear();laps.current.previous.clear();laps.current.lap=0;if(history.current.length){history.current=[];if(!collapsed)refresh(n=>n+1);}return;}
    if(data.status!=='running')return;
    const load=(key:string)=>(data.loads?.[key]??0)/1000;
    const point:Point={d:data.distance,station:data.station??0,speed:data.speed,throttle:100*(data.throttle??0),brake:100*(data.brake??0),
@@ -34,12 +34,12 @@ export function TelemetryPlot({data,circuitId}:{data:CruiseSnapshot;circuitId?:s
      }
      record.current.set(Math.floor(point.station/10),point);
    }
-   setSamples(old=>{
+   const old=history.current;{
      const last=old.at(-1);
-     if(last && last.d>point.d)return [point];
-     if(last && point.d-last.d<2)return old;
-     return [...old.filter(p=>p.d>=point.d-windowM),point];
-   });
+     if(last && last.d>point.d)old.length=0;
+     if(last && point.d>=last.d && point.d-last.d<2)return;
+     while(old.length&&old[0].d<point.d-windowM)old.shift();old.push(point);if(!collapsed)refresh(n=>n+1);
+   }
  },[data]);
  const end=samples.at(-1),channels=views[view];
  const x=(p:Point)=>8+584*(1-((end?.d??0)-p.d)/windowM);

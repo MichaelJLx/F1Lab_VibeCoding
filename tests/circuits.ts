@@ -1,22 +1,23 @@
 import assert from 'node:assert/strict';
-import {createStaticCircuit} from '../src/tracks/StaticCircuit';
-import circuits from '../src/tracks/static-circuits.json';
+import {CircuitTrack} from '../src/tracks/CircuitTrack';
+import {circuitData} from '../src/tracks/CircuitRegistry';
+import circuits from '../src/tracks/catalog.json';
 import {Cruise} from '../src/motion/Cruise';
 import {RacingLine} from '../src/optimizer/RacingLine';
 Object.assign(globalThis,{document:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});
 // Route lifecycle regression. The separate Spa run exercises the full candidate planner.
-for(const id of Object.keys(circuits)){
- const track=createStaticCircuit(id,false).track,line=new RacingLine(track),car=new Cruise(track,line);
+for(const {id} of circuits){
+ const track=new CircuitTrack(circuitData(id),false),line=new RacingLine(track),car=new Cruise(track,line);
  (car as unknown as {stageNextLap:()=>void}).stageNextLap=()=>{};
  const pit=track.pit!;
  assert.ok(pit && pit.entry<0 && pit.exit>0,id+' pit lane');
- for(const s of [pit.entry,pit.exit]){
+ for(const s of track.layout.pit.approach.kind==='junction'?[pit.entry,pit.exit]:[]){
    assert.ok(pit.point(s).distanceTo(track.point(s))<.005,id+' junction position');
    const tangent=pit.point(s+1).sub(pit.point(s-1)).normalize();
    assert.ok(tangent.dot(track.point(s+1).sub(track.point(s-1)).normalize())>.99,id+' junction tangent');
  }
  for(let s=pit.entry+2;s<pit.exit-2;s+=5){
-   const p=pit.point(s),height=pit.heightAt(p);
+   const p=pit.point(s),height=track.getSurfaceHeightAt(p);
    assert.ok(height!==undefined&&Math.abs(height-p.y)<.12,id+' pit surface support '+s);
  }
  car.lapCount=1;car.toggle();let resets=0,last=false;

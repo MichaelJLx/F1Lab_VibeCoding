@@ -1,5 +1,4 @@
 import type {GroupMemory} from './LapLearning';
-const key='f1lab.spa.driver.v1';
 // Learning is specific to the path/controller revision; retain lap history only
 // when older unconfirmed incidents or discontinuous routes were used.
 const revision=4;
@@ -9,9 +8,9 @@ const fresh=():CornerRecord=>({time:0,line:0,pickup:0,caution:0});
 export class DriverMemory{
  groups:GroupMemory[]=[];
  slides:SlideMark[]=[];
- corners=Array.from({length:19},fresh);
+ corners:CornerRecord[]=[];
  laps:{date:number;sectors:number[]}[]=[];
- constructor(private storageKey=key,count=19,groups=8){
+ constructor(private storageKey:string,count=0,groups=0){
    this.groups=Array.from({length:groups},()=>({step:.2,clean:0,failed:false}));
    this.corners=Array.from({length:count},fresh);
    try{

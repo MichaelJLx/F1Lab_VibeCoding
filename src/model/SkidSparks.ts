@@ -55,7 +55,7 @@ export class SkidSparks {
      let depth=0,hit:T.Vector3|undefined;
      for(const block of this.blocks){
        const p=this.contact.copy(block).applyMatrix4(chassis.matrixWorld).divideScalar(scale);
-       const height=track.pit?.heightAt(p);
+       const height=track.getSurfaceHeightAt(p);
        if(height!==undefined && height-p.y>depth){depth=height-p.y;hit=this.hit.copy(p);hit.y=height+.001;}
      }
      if(hit){
@@ -75,7 +75,7 @@ export class SkidSparks {
      if(spark.life<=0)continue;
      spark.life-=dt;if(spark.life<=0)continue;
      spark.v.y-=9.81*dt;spark.p.addScaledVector(spark.v,dt);
-     const road=track.pit?.heightAt(spark.p);
+     const road=track.getSurfaceHeightAt(spark.p);
      if(road!==undefined && spark.p.y<road+.002){
        spark.p.y=road+.002;
        if(spark.v.y<0){spark.v.y=-spark.v.y*.42;spark.v.x*=.77;spark.v.z*=.77;spark.bounces++;}

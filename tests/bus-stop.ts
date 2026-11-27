@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import {Vector3} from 'three';
 import {Cruise} from '../src/motion/Cruise';
-import {SpaTrack,spaData} from '../src/tracks/SpaTrack';
+import {CircuitTrack} from '../src/tracks/CircuitTrack';
+import {circuitData} from '../src/tracks/CircuitRegistry';
+const circuit=circuitData('be-1925');
 import {RacingLine} from '../src/optimizer/RacingLine';
 import {corners} from '../src/motion/Suspension';
 
 // Same station, battery, tyres, speed and steering state for all three runs.
 Object.assign(globalThis,{document:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});
-const track=new SpaTrack();
+const track=new CircuitTrack(circuit);
 for(const [name,t18,t19] of [['参考线',0,0],['T18 内切',1,0],['优先 T19 出口',0,1]] as const){
  const car=new Cruise(track,new RacingLine(track));
- car.lap=2;car.distance=6300-spaData.grid.s;car.speed=82;car.status='running';
+ car.lap=2;car.distance=6300-circuit.grid.s;car.speed=82;car.status='running';
  const weights=Array(19).fill(0);weights[17]=t18;weights[18]=t19;
  car.setPath(weights);car.buildSpeedPlan();
  for(const key of corners){

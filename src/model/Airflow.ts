@@ -195,7 +195,8 @@ export function createAirflow(chassis:T.Group){
  const poses=Array.from({length:4},()=>new Array<number>(4)),axes=Array.from({length:4},()=>new Array<number>(3));
  return {mesh,uniforms,stats,setVisible(on:boolean){mesh.visible=on;appearance=0;elapsed=Infinity;shownAt=performance.now();stats.firstFrameMs=-1;},dispose(){disposed=true;worker.terminate();uniforms.clearance.value.dispose();geometry.dispose();material.dispose();},
  update(dt:number,speed:number,opening:number,beta:number,frontGap:number,rearGap:number,steer:number,renderDt=dt){
-   if(mesh.visible&&received&&stats.firstFrameMs<0)stats.firstFrameMs=performance.now()-shownAt;
+   if(!mesh.visible)return;
+   if(received&&stats.firstFrameMs<0)stats.firstFrameMs=performance.now()-shownAt;
    appearance=Math.min(1,appearance+Math.max(0,renderDt)/.15);
    const damping=1-Math.exp(-Math.max(0,renderDt)/.12);
    smoothSpeed+=(speed-smoothSpeed)*damping;smoothOpening+=(opening-smoothOpening)*damping;

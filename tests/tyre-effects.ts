@@ -36,7 +36,7 @@ test('smoke pool stays bounded and sparks require floor contact, then bounce abo
  const tyres=Object.fromEntries(['FL','FR','RL','RR'].map(k=>[k,new Tyre(.35)]));
  for(const t of Object.values(tyres))t.smokePower=200000;
  const car=new T.Group(),wheels=Object.fromEntries(Object.keys(tyres).map(k=>{const pivot=new T.Group();pivot.position.y=.35;car.add(pivot);return [k,{pivot,radius:.35}];}));
- const cruise={status:'running',recovering:false,dynamics:{tyres},speed:60,track:{pit:{heightAt:()=>0}},gearbox:{brake:1}} as any;
+ const cruise={status:'running',recovering:false,dynamics:{tyres},speed:60,track:{getSurfaceHeightAt:()=>0},gearbox:{brake:1}} as any;
  const smoke=new TyreSmoke(1);for(let i=0;i<180;i++)smoke.update(1/60,cruise,wheels,car,1);
  assert.ok((smoke.mesh.geometry as T.InstancedBufferGeometry).instanceCount>0);assert.ok((smoke.mesh.geometry as T.InstancedBufferGeometry).instanceCount<=256);
  const sparks=new SkidSparks(1),chassis=new T.Group();chassis.position.y=.6;

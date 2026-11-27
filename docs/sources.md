@@ -6,7 +6,7 @@
 | 24 站平面布局 | 将 Tomislav Bacinger 的经纬度中心线投影为米制坐标，用于赛道缩略图、路带和格线定位。 | [f1-circuits](https://github.com/bacinger/f1-circuits) · [MIT 许可全文](../data/tracks/layouts/LICENSE-layout.md) |
 | 路宽、杆位与 Spa 高程 | FIA 清单提供参考宽度与杆位侧；Spa 官方地图提供离散高程点，赛事指南提供宽度范围。 | [FIA 2026 清单](https://www.fia.com/sites/default/files/circuits_fia20261104.pdf) · [2023 清单](https://www.fia.com/sites/default/files/circuits_fia20231022.pdf) · [Spa 官方地图](https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf) · [赛事指南](https://press.fiawec.com/assets/fileuploads/66/12/66124edb6859e.pdf) |
 | 其余 23 站高程 | 沿中心线采样 Mapzen 地形瓦片，经平滑生成纵坡。不同地区的原始数据提供方与使用条件见上游署名。 | [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) · [数据提供方与署名](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) |
-| 全赛道维修区 | 各站独立道路中心线，按共同地理原点转换为米制坐标，连接主赛道、车位及限速段。 | © OpenStreetMap contributors · [ODbL 1.0](https://www.openstreetmap.org/copyright) · [原始道路及 way 编号](../data/tracks/pit-lanes/) · [运行坐标](../src/tracks/circuit-pits.json) |
+| 全赛道维修区 | 各站独立道路中心线，按共同地理原点转换为米制坐标，连接主赛道、车位及限速段。 | © OpenStreetMap contributors · [ODbL 1.0](https://www.openstreetmap.org/copyright) · [原始道路及 way 编号](../data/tracks/pit-lanes/) · [运行坐标](../src/tracks/circuits/) |
 | 弯号、计时线与直道区 | F1 Sensor 地图注记与 MultiViewer 坐标配准到赛道中心线，FIA 分站图补充直道激活点与分段位置。 | [F1 Sensor](https://github.com/Nicxe/f1_sensor) · [MIT 许可](../data/tracks/annotations/LICENSE) · [原始地图](../data/tracks/annotations/) · [FIA 位置补充与来源](../data/tracks/annotations/station-overrides.json) |
 | Spa 轨迹与计时 | OpenF1 比利时站历史正赛数据。2024 年佩雷兹第 44 圈用于路线参考，全场绿旗有效圈用于节奏对照。 | [OpenF1](https://openf1.org/) · [本地对照数据](../data/tracks/spa/race-pace/benchmark.json) |
 | 主动翼区间 | 根据 FIA 比利时站赛事图，将正常抓地条件下的启用区间近似映射到本地里程。 | [FIA Spa 分站图](https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf) |
@@ -14,9 +14,9 @@
 
 ## 全赛道维修区与路牌
 
-`fetch-pit-lanes.py` 按保存的 OSM way 编号获取道路，`build-pit-lanes.py` 将道路接续、校正行驶方向并转换到各站坐标。银石使用国际大奖赛维修区，铃鹿使用主维修区；亚斯码头出口保留下穿路径。所有赛道共用停车、出站、限速、并线和回站流程。
+`fetch-pit-lanes.py` 按保存的 OSM way 编号获取道路，接续、方向与高程校正后的路径统一保存到各站 `CircuitData.pit`，由 `build-circuits.mjs` 校验。银石使用国际大奖赛维修区，铃鹿使用主维修区；亚斯码头出口保留下穿路径。所有赛道共用停车、出站、限速、并线和回站流程。
 
-150／100／50 米牌按重刹区入口的路面里程布设。直道模式激活与关闭牌使用车辆同一份区域数据，维修区设置限速与解除牌。直道激活与计时位置的配准记录见 [赛道注记](../src/tracks/circuit-markings.json)。
+150／100／50 米牌按重刹区入口的路面里程布设。直道模式激活与关闭牌使用车辆同一份区域数据，维修区设置限速与解除牌。直道激活与计时位置的配准记录见 [赛道注记](../src/tracks/circuits/)。
 
 ## Spa 路面与维修区
 
@@ -24,7 +24,7 @@ Eau Rouge 至 Raidillon 的局部高程使用佩雷兹 2024 年比利时站第 4
 
 轻量维修区路带参考赛事图的 Bus Stop 入口与 La Source 后方出口。中心线、6.4 米路宽、停车位、80 km/h 限速区域和模拟转播机位采用近似位置。[FIA 比利时站赛道及维修区图](https://www.fia.com/system/files/decision-document/2025_belgian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exits_quarantine_zone_and_red_zones.pdf)
 
-维修区水平中心线采用 © OpenStreetMap contributors 的 [Pit Lane（way 323851541）](https://www.openstreetmap.org/way/323851541)，数据遵循 [ODbL 1.0](https://www.openstreetmap.org/copyright)。[本地坐标](../src/tracks/spa-pit-path.json) 每行依次为邻近主赛道里程、东向米数、北向米数，原点与 Spa 主路相同。里程用于挂接计时和路段状态；La Source 内侧捷径按维修区自身弧长插值。路宽、高程和两端过渡采用工程估值。
+维修区水平中心线采用 © OpenStreetMap contributors 的 [Pit Lane（way 323851541）](https://www.openstreetmap.org/way/323851541)，数据遵循 [ODbL 1.0](https://www.openstreetmap.org/copyright)。[本地坐标](../src/tracks/circuits/spa.json) 中的 `pit.points` 为米间隔的 `[x,y,z]` 局部中心线，Y 为高程。里程用于挂接计时和路段状态；La Source 内侧捷径按维修区自身弧长插值。路宽、高程和两端过渡采用工程估值。
 
 ### 空力平台与悬架几何
 
