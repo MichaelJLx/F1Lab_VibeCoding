@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "be-1925",
+  "category": "sessions",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "2026/session.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/sessions?session_key=11334",
+      "retrieved": "2026-11-28",
+      "sha256": "4299ad6ef4d0990a2810491fc543424435fb9d03900cfe6f0608deab3ea81306"
+    },
+    {
+      "file": "2026/laps.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11334",
+      "retrieved": "2026-11-28",
+      "sha256": "e2dfeffc51b3e13fe82c5a27d665f87182178775e8b785909b5cb337e8b4c4a6"
+    },
+    {
+      "file": "2026/reference-lap.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11334",
+      "retrieved": "2026-11-28",
+      "sha256": "db332345bfc3c1386591f8542e31213ea990b2e8a071944544c5e5915d555a71",
+      "selection": "Fastest complete non-pit-out lap with consistent sector sum; timing sample, not certified qualifying record."
+    },
+    {
+      "file": "2026/car-data.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/car_data?session_key=11334&driver_number=1&date%3E=2026-07-19T14%3A27%3A10.092000%2B00%3A00&date%3C=2026-07-19T14%3A28%3A58.982000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "73f5c3bd08f3f7fcce462d918a9f0fdfabb26ce7b8a2241ef9b851c10a36476a",
+      "lap": 44,
+      "driver": 1
+    },
+    {
+      "file": "2026/location.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/location?session_key=11334&driver_number=1&date%3E=2026-07-19T14%3A27%3A10.092000%2B00%3A00&date%3C=2026-07-19T14%3A28%3A58.982000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "c03711a65eceaf0ed96565f4a2ae6f4132eb9aebf242b09e7658920a9f2ea7dc",
+      "lap": 44,
+      "driver": 1
+    },
+    {
+      "file": "2026/pit.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/pit?session_key=11334",
+      "retrieved": "2026-11-28",
+      "sha256": "7f535a0d447df85d782f969dd2f516f5c674c8d7b4d49441d65253492d08b34d"
+    },
+    {
+      "file": "flying/car_data.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/car_data?session_key=9574&driver_number=11",
+      "sha256": "219130574d8158908061bc0fa1340a1ba63c636ccffe0abb91c0a660412070c4",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "flying/laps.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/laps?session_key=9574&driver_number=11",
+      "sha256": "17f44dd9bab8c4a46f242687b81ff72e8059e6e533f32394f3643013a5593b34",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "flying/location.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/location?session_key=9574&driver_number=11",
+      "sha256": "79ea03dd473dd8e64603196460b139d254115cfcdb7359a8d472c7608caebffa",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "race-pace/benchmark.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/laps?session_key=9574",
+      "sha256": "368afe401247c4540e8b45aff534a1600e7bc08c5d701939db8ab953ad0abcee",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null,
+      "derivedBy": "scripts/circuits/build-pace-benchmark.py"
+    },
+    {
+      "file": "race-pace/laps.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/laps?session_key=9574",
+      "sha256": "4d0a431be376b8a5d1115f1ae47f4aab5a01421edb4e67df14c1e8dbd926580f",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "race-pace/pit.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/pit?session_key=9574",
+      "sha256": "8361d94e0f4d4c1371625d288a3163d2cf16be0ccf1c3b562198e97a654c5198",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "race-pace/race_control.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/race_control?session_key=9574",
+      "sha256": "49d55414bddea147268fdf797d706163c6093448c2358c8001e6c9be8a525589",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "telemetry/car_data.json",
+      "year": 2023,
+      "url": "https://api.openf1.org/v1/car_data?session_key=9141&driver_number=1",
+      "sha256": "92b7fa065dbbc2e728269dc3087116a67d4bed2f1ba833567dc045fe13113f33",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "telemetry/lap.json",
+      "year": 2023,
+      "url": "https://api.openf1.org/v1/laps?session_key=9141&driver_number=1",
+      "sha256": "2a107155fbc5e3a8809e6c1c230f9b8b874cca833b32516c5747b2d2939b9374",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "telemetry/location.json",
+      "year": 2023,
+      "url": "https://api.openf1.org/v1/location?session_key=9141&driver_number=1",
+      "sha256": "d550db39f22e4aafa4ac408402f89a433e5cfb5de94cad0d590d9e9f97795087",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "mx-1962",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/65/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "dc2065290f35029f0dcc39f985388acd3155a267e26ebe1e769db6f19dd3bd8c",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/65/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "19e2f1d7f1dda6d4f0c1dac9f555e4e4cad50ae1937a9efb1e4678a1dc2d33ec",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/65/2026",
+      "sha256": "6b53cbadd0e986d25d15b13841632ab2277dd942d9be333ab8251342f5da120a",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "8310a16ba7bc746528ff2f16bff5efb25df2768d56e6343dd6c1a23cc79c2283"
+    }
+  ]
+}

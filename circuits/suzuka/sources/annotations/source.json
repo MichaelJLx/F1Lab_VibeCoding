@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "jp-1962",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/46/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "95677dbace0677a963f33c5ced5a46046e51cf0c3f98f27a25e92bc42ad09422",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/46/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "5d51df36c1e0c17cd10db975ba6c90f26e49c98cef6323dd838ce1f91fe7cf20",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/46/2026",
+      "sha256": "f7104ade390c38bac3c3c49b3ae1b9de5314c25512c7e935dacae43699f8428e",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "station-overrides.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_japanese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+      "sha256": "5547fc4e670bf72c6f3c821951a910f18afb7d0e6609eb2f2ecf5c8d0e77365f",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_japanese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "4947f3d1a684380f2d499954deb00a91a8227b789dd2d3e5618cc0f64a715033"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "sa-2021",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "681c4af7e20dd4a0b587ba2d217cbfe86984520131aaa9f2f7afeeba96941808",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2025.json",
+      "year": 2025,
+      "url": "https://www.formula1.com/en/racing/2025/saudi-arabia/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "355665aef500541e5b98f1e6b1ed697f05bf8d77595ac5a8a13751d852cf3026",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2025-circuit-map.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_saudi_arabian_grand_prix_-_event_notes_-_circuit_map_pit_lane_and_quarantine_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "fdbd4a72211efad4089aadb2efe261f75acfac67cbf8aa9dcd187e0fcbcfb7d0",
+      "kind": "FIA official original"
+    }
+  ]
+}

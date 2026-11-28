@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "es-2026",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "categories": {
+    "layout": "layout/source.json",
+    "elevation": "elevation/source.json",
+    "annotations": "annotations/source.json",
+    "pit-lane": "pit-lane/source.json",
+    "sessions": "sessions/source.json"
+  },
+  "runtimeModified": false,
+  "failedRequests": [
+    {
+      "url": "https://api.multiviewer.app/api/v1/circuits/153/2026",
+      "result": "curl: (56) The requested URL returned error: 404"
+    },
+    {
+      "url": "https://api.multiviewer.app/api/v1/circuits/153/2025",
+      "result": "curl: (56) The requested URL returned error: 404"
+    },
+    {
+      "url": "https://api.multiviewer.app/api/v1/circuits/153/2024",
+      "result": "curl: (56) The requested URL returned error: 404"
+    },
+    {
+      "url": "https://api.multiviewer.app/api/v1/circuits/153/2023",
+      "result": "curl: (56) The requested URL returned error: 404"
+    }
+  ]
+}

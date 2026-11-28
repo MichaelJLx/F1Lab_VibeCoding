@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "hu-1986",
+  "category": "elevation",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "dem-anchors.json",
+      "year": null,
+      "url": "https://registry.opendata.aws/terrain-tiles/",
+      "retrieved": "2026-11-28",
+      "sha256": "3b10f21aaaaf469e013a029ba2ab14831ac9c7112165604fd4ea2214be64f124",
+      "kind": "DEM terrain anchors",
+      "yearNote": "Composite DEM has no single acquisition year; these are terrain samples, not a road-surface survey."
+    },
+    {
+      "file": "terrain.json",
+      "year": null,
+      "url": "https://registry.opendata.aws/terrain-tiles/",
+      "sha256": "044f4a942f00c3962d81f75929e6733697cf1a11ebf9037dfb1cefa777241c30",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    }
+  ]
+}

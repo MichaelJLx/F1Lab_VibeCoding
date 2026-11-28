@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "bh-2002",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "fa26ef4159a6c3287058b9edbf3d5b3edd054838d05b2058b4d6df0d612e7147",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2025.json",
+      "year": 2025,
+      "url": "https://www.formula1.com/en/racing/2025/bahrain/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "d0b55ceb15aaca2f1ff8aad104e9b639ef880f77f415977dec9db02303a955b6",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2025-circuit-map.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_event_notes_-_circuit_map_v4.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "48a7838862ddd0258f52d7d3b4e67e316dc84d5f13e9839245bc24a3988e604d",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2025-circuit-map-a3190afc.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_event_notes_-_circuit_map_pit_lane_quarantine_zone_and_red_zones.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "efd18c6ff527d5055d746739c490c346c5ce458eec850f82764abe5a64c78a11",
+      "kind": "FIA official original"
+    }
+  ]
+}

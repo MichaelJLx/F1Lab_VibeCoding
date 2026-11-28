@@ -30,7 +30,7 @@
 
 ## 已保存的参数原件
 
-原件位于项目 [data/vehicle-dynamics](../data/vehicle-dynamics/)，来源 URL、下载日期、字节数和 SHA-256 记录在 [sources.json](../data/vehicle-dynamics/sources.json)。保存原始输入不代表已应用到模拟器。
+原件位于项目 [references/vehicle-dynamics](../references/vehicle-dynamics/)，来源 URL、下载日期、字节数和 SHA-256 记录在 [sources.json](../references/vehicle-dynamics/sources.json)。保存原始输入不代表已应用到模拟器。
 
 ### 1. Fastest-lap 历史 F1 拟合模型
 
@@ -86,7 +86,7 @@
 
 已找到并保存 [Dallara F308 制造商车主手册](https://monoposto.co.uk/wp-content/uploads/2022/10/dallara-f308-owners-manual.pdf)。托管方 [Monoposto Racing Club](https://monoposto.co.uk/technical/setup-manuals/) 说明这些手册是制造商提供给参赛车队的原手册副本。相比通用仿真假设，这属于真实赛车的制造商技术资料；手册推荐设定仍应与测试实测曲线区分。
 
-本地原件：`data/vehicle-dynamics/Dallara_F308_制造商车主手册.pdf`，40 页，已记录来源与 SHA-256。仅本地技术参考，未发现开放再分发许可，不将整本手册作为开放资产发布。
+本地原件：`references/vehicle-dynamics/Dallara_F308_制造商车主手册.pdf`，40 页，已记录来源与 SHA-256。仅本地技术参考，未发现开放再分发许可，不将整本手册作为开放资产发布。
 
 已核实的少量数据（按手册印刷页码）：
 

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ae-2009",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "319f0ecb3ec99b7be741322b628a41f0b1790c17502b12e495539288cd3f0ef3",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_abu_dhabi_grand_prix_-_event_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_quarantine_zone_and_red_zones.pdf",
+      "derivedFrom": "../layout/fia-2025-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "2f2cbce12d9ce226f18e038291cc2e6ded136448f481e460de22232b2e331ef3"
+    }
+  ]
+}

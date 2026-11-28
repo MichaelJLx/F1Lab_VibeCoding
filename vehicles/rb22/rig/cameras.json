@@ -1,0 +1,35 @@
+{
+  "coordinateSystem": "Source model metres: +Y up, +Z forward, +X driver left. Mounts are relative to sprung-chassis.",
+  "housing": {
+    "min": [
+      -0.15,
+      1.035,
+      -0.31
+    ],
+    "max": [
+      0.15,
+      1.19,
+      -0.045
+    ]
+  },
+  "lens": {
+    "lateral": 0.085,
+    "forwardClearance": 0.012,
+    "fallback": [
+      0.085,
+      0.83,
+      -0.053
+    ],
+    "verticalFov": 76,
+    "verticalFromTop": 0.05
+  },
+  "eye": {
+    "position": [
+      0,
+      0.46,
+      0.42
+    ],
+    "verticalFov": 70,
+    "pitch": -0.05
+  }
+}

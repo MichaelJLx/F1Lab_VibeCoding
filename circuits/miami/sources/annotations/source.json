@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2022",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/151/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "b064a5eee8091413e90fa7a885747827cb3590242f919ec1e4fda6748f01b204",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/151/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "7993496b968e6e579687078f55ea97aa611aed22cc06f05e68a75d4e1f0c376c",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/151/2026",
+      "sha256": "26af6a0ab55f00cfdf503623d5b15ec8cbecad82c146938673d7fffa034a6e61",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "station-overrides.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_miami_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "sha256": "3079d77c1866e0568d78a49498b7f8adfcfe297694b84fbc32d786d3efb49c88",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_miami_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "3fa0daafcf44cb368d9d2537350f82969119af822a19eb7affcd90d7b59da72a"
+    }
+  ]
+}

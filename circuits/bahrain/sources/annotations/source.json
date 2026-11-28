@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "bh-2002",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2025.json",
+      "year": 2025,
+      "url": "https://api.multiviewer.app/api/v1/circuits/63/2025",
+      "retrieved": "2026-11-28",
+      "sha256": "d148d3c2328429b5f3a83efc3d7bfdef6abd18247f65474411c8f828de775707",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2025,
+      "url": "https://api.multiviewer.app/api/v1/circuits/63/2025",
+      "retrieved": "2026-11-28",
+      "sha256": "81642668d7543f0769f071d59f981824d19818764674b5ce3e45fb10d6ca48a9",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/63/2026",
+      "sha256": "e0454a4f4f9803621efbfc8e2b8132855e127fb5f51acb8a239bab85208a84e7",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_event_notes_-_circuit_map_v4.pdf",
+      "derivedFrom": "../layout/fia-2025-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "e804680b63e60bf79b9031ad8bf3d8a8a94c124d256b3bc7919d4ff2f1b4a766"
+    }
+  ]
+}

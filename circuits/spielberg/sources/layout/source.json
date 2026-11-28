@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "at-1969",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "d892274e5a3dc85ea9c5e293196d308f8746dfeb911b6d4bc7d30c74e488d8ad",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/austria/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "47419b81afaf4d644e42f50859d32913a30d881605c4c5a52022aa1d1f0371c7",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_austrian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "00e1595eb783c7edd279ad9e3dd1030c909c9c9edf0e7e423b7eb220db064a90",
+      "kind": "FIA official original"
+    }
+  ]
+}

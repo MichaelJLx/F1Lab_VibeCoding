@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "cn-2004",
+  "category": "elevation",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "dem-anchors.json",
+      "year": null,
+      "url": "https://registry.opendata.aws/terrain-tiles/",
+      "retrieved": "2026-11-28",
+      "sha256": "4db791c357340af5b4605b495fd646b8391e8fd66ae8e8730cb0269267a351de",
+      "kind": "DEM terrain anchors",
+      "yearNote": "Composite DEM has no single acquisition year; these are terrain samples, not a road-surface survey."
+    },
+    {
+      "file": "terrain.json",
+      "year": null,
+      "url": "https://registry.opendata.aws/terrain-tiles/",
+      "sha256": "1652f01d9cda5d104a6b117ee4e76a2fd13311d2ba76294f3550f666b468df33",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    }
+  ]
+}

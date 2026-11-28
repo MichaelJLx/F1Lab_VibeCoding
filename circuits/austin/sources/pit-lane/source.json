@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2012",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_race_directors_competition_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "c27ee4ad957d544d84af4127be1bd75ab318c9c8f6bca4847cd1b5a295dda6cc",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "51241315c81c111f9b5be508544f92518c68ae94d71ae59d65e3f78d59467595",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "9e876fee89feb500edd0e68430fd070bafb373f6674ed32ff06d121f89061b96",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "c07ece2d139052a78c13251958670da70d70c01d9d21e0bc5a77332db81fdff8"
+    }
+  ]
+}

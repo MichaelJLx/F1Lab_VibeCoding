@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "sg-2008",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "27c26eb5194555305ca8ade96ef48ae6aa3821e5cec6fb097adb7c67e1370112",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/singapore/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "0b648caf661af5f0735150b839df026237a0ca272268ff5a3f6287181da9eb7f",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_singapore_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "8bd2227af6272a03e692b0f27bb1bded920cd7f16107f493781770461fa14aae",
+      "kind": "FIA official original"
+    }
+  ]
+}

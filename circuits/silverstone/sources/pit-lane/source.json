@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "gb-1948",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_british_grand_prix_-_race_directors_competition_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "c49d1f19e9d5022161f879be0543e06b92e4989aaa86df3778249bafa4ac5af7",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_british_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "d98855f00b467cc748e64df8d69252efcd087168c8b3786ba91d4c62c1e648b4",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "ac13be65e897277955258299b00d667a56f1c118c9eccf8fe77a2be785cd5b73",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_british_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "d72bc5e58f1d3db8d634b1cb80524b32f86628a69eed41e847effaa2d1539ffc"
+    }
+  ]
+}

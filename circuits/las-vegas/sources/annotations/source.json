@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2023",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/152/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "c87b82bee6ecc8b4d72cf91919f7a951d18dddb25926130f255ca14c498cc12b",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/152/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "d8fcd013324893a123daff9d72f1b1405d0822cc115403826afae2641014078b",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/152/2026",
+      "sha256": "9cb5b78fba1cbfd0420f308145e57c63d454f9a428872cdc29c35ddee90fed24",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "station-overrides.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_las_vegas_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "sha256": "913b6356526c0f709eb5e4462e247858a08e04fa1914f19084b9557390c27e3c",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_las_vegas_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "1dc3e7946b91874d39427838fb56079c18e541702d43fd2f3794fff60ea3dd1e"
+    }
+  ]
+}

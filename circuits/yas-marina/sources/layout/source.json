@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ae-2009",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "77e45ab43c503126ee4acbff6e125d06f402fbc4a170e60df72f36672824754e",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/united-arab-emirates/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "ac923a6f6608c8d9692907f2d2b2cd00678bc45a26a61e73386307d8d401a5c2",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2025-circuit-map.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_abu_dhabi_grand_prix_-_event_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_quarantine_zone_and_red_zones.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "5d7fe92297123c0db9d430652755cdbf95d1af5d6d6aeaa628903e6bcb7f8aeb",
+      "kind": "FIA official original"
+    }
+  ]
+}

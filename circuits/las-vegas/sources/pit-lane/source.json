@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2023",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_las_vegas_grand_prix_-_race_directors_competition_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "6783830cb591b34165927de34c4eda7f5b786f51b829b22168a0d87c9aa42647",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_las_vegas_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "015f4d86a20d7b99bee579ffc5faa0f073e27dc1fdd0320befe382daf68be656",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "c802c7984063dda41b57c4444e9adda7631dc7003661588268639fcf47e20985",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_las_vegas_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "e334376ea1d81324f075abf6fb5ccfe3229ee5107473e41cc3607474ea158158"
+    }
+  ]
+}

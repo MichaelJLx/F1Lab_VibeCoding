@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "bh-2002",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2025,
+    2024,
+    2023
+  ],
+  "categories": {
+    "layout": "layout/source.json",
+    "elevation": "elevation/source.json",
+    "annotations": "annotations/source.json",
+    "pit-lane": "pit-lane/source.json",
+    "sessions": "sessions/source.json"
+  },
+  "runtimeModified": false,
+  "failedRequests": []
+}

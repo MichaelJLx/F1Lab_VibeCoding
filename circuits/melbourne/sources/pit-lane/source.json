@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "au-1953",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_australian_grand_prix_-_race_directors_competition_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "70c70df040b92149c88a092cdb1acbf088cb2419581d8678c919d90659062760",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_australian_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "449eed4855ec37bf634ea0756c5fa5a8226638d3147063104ca83b490ba46331",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "48d36a75b9eb810349a38e4cc8b3fcd036c84d2cdf0fcbc15d1aef5f4f649d88",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_australian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_quarantine_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "57f5a4d3a0dc290756411cd7637364d23dea38b047c60dddea2a5023b80f4467"
+    }
+  ]
+}

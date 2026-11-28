@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "be-1925",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_race_directors_competition_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "7721c0b56b32f56df200f15126634eb9f194602b4890d1c6379426972c1344d3",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "180d4abc6d759514612b9bf4288bac15f35313fa0f7319d325c9c0ac26a3aba9",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "osm-way.json",
+      "year": null,
+      "url": "https://api.openstreetmap.org/api/0.6/way/323851541/full.json",
+      "retrieved": "2026-11-28",
+      "sha256": "192b74d6fc8319a7a6d5f20caba56a54243f7f6aec0d799a86df756bdb3b8f74",
+      "kind": "OSM original pit lane geometry",
+      "license": "ODbL 1.0",
+      "yearNote": "OSM live snapshot, acquisition year varies by element."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "ae52a1e98fce11808c78fab9d95d48b17a8f9aec1836b77a369097868ffed1a4"
+    }
+  ]
+}

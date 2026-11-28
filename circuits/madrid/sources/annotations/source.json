@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "es-2026",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://github.com/Nicxe/f1_sensor/blob/main/custom_components/f1_sensor/track_map_static_geometry.py",
+      "sha256": "b066910c87614fe565527bf246136ee904c87570a755b7ef20c97b15d6b28f91",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_spanish_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "adb0ef6421ef7b172f56fb22662373f7f91d888c9b8b70b1eabb8fc146aec019"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ae-2009",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/70/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "5f0db46d96f715c2a9aa22483f477a05c77a60cd7f1ccc2d01500eb3167c4b41",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/70/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "425c2c9caf03c42f198299af98c9c8a9348e98f5b7d2fc497bafba22a35c2424",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/70/2026",
+      "sha256": "147a3ca0b693b6657c463eeb95ffae9793f013b885f4bbc8e151ff83d8683ff0",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_abu_dhabi_grand_prix_-_event_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_quarantine_zone_and_red_zones.pdf",
+      "derivedFrom": "../layout/fia-2025-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "60bd356cff28143fe9d4f538a58ff3c632059b7d888156fcc70eeccad3eb62cc"
+    }
+  ]
+}

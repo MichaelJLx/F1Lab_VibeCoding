@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "be-1925",
+  "category": "elevation",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "FIA-2026-Spa-zones.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "sha256": "584d96cf7d651b1eef1554a0032382eb79ba515028035c79b1e0273ea44a38f1",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "Spa官方地图_2026.pdf",
+      "year": 2026,
+      "url": "https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf",
+      "sha256": "b27ef259435a2b0cfbac40059aed18281ac9cd09e517488f96b2ca5d48049d68",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "elevation-anchors.json",
+      "year": null,
+      "url": "https://www.spa-francorchamps.be/assets/e70cff50-ae5d-4aaa-896b-54c8a953a357/all-plan-acces.pdf",
+      "sha256": "c67edefe94e33d5f2806aabd3b82bec933cfdc5c7cd518946769d71667d80c33",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "eudem25m.json",
+      "year": null,
+      "url": "https://api.opentopodata.org/v1/eudem25m",
+      "sha256": "7024b809a04c642d0e9aa6f5ab915c87bf72e440203a220cc54e22a8ff5b9403",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "raidillon-profile.json",
+      "year": 2024,
+      "url": "https://api.openf1.org/v1/location?session_key=9574&driver_number=11",
+      "sha256": "a6dd7b486045219891be3dfc1cc8e4d4516ecd97054c8371594be83e0abacbbc",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null,
+      "sourceDescription": "OpenF1 9574 / PER / lap 44; registered location.z in metres, 30 m Gaussian smoothing"
+    }
+  ]
+}

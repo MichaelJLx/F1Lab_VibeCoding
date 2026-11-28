@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ae-2009",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "categories": {
+    "layout": "layout/source.json",
+    "elevation": "elevation/source.json",
+    "annotations": "annotations/source.json",
+    "pit-lane": "pit-lane/source.json",
+    "sessions": "sessions/source.json"
+  },
+  "runtimeModified": false,
+  "failedRequests": [
+    {
+      "url": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Abu%20Dhabi%20Grand%20Prix",
+      "result": "curl: (56) The requested URL returned error: 500"
+    },
+    {
+      "url": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2025/event/Abu%20Dhabi%20Grand%20Prix",
+      "result": "curl: (56) The requested URL returned error: 500"
+    },
+    {
+      "url": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2024/event/Abu%20Dhabi%20Grand%20Prix",
+      "result": "curl: (56) The requested URL returned error: 500"
+    },
+    {
+      "url": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2023/event/Abu%20Dhabi%20Grand%20Prix",
+      "result": "curl: (56) The requested URL returned error: 500"
+    }
+  ]
+}

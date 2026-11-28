@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2022",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "37a84588d147996da8753d40bd3dbe3d042584657b5c46818a35a6aa7088ba3c",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/miami/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "61b38793dc41af4f736277660ceecbbda028192a1729b590a8d96474e2ad1a20",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_miami_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "57e96ed983ca1cd7d951fc8485f88a93e971f93736bbaf758d49733ac791c261",
+      "kind": "FIA official original"
+    }
+  ]
+}

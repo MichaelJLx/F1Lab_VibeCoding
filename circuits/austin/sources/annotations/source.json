@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2012",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/9/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "dc919fb25506cd9aaad234c40a66a919ce7df5a7d1c73cb08b56de4c8c75c848",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/9/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "90da70ecae18b3cbc0e56785bef47afae1f523ea809c75747c9b64022488f359",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/9/2026",
+      "sha256": "06918a27980685c61f87178fdb240bc90f42413217273a536b7ccfc1d19d2704",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "2cd39a55f8dd32886b148a41be7dc1ed4aa630501588d9fe8b2336404a306d85"
+    }
+  ]
+}

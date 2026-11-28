@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "az-2016",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/144/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "fd42e872ef13cd0d3f48988fd7b13270d8999b7c7de3f56f9ad2d110ac1efd89",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/144/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "d2fea1e223fecffdbabbb6fdf4c6d4972accbe106be73264fbe1518e038fc06a",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/144/2026",
+      "sha256": "c9f4023c0790105cde5a29a3972ba4e85eb5ecf526b31592ad74b8ee489acdb8",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_azerbaijan_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "d6eba3894b4337b0fde921ea5314119811c3e7621d307357b281b485527dd5b3"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "us-2012",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "55a83f29c6cf7c3218704341f1498290a59a409ab9b02e758b1533a9d49cafb7",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/united-states/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "44d001049ecdcd94ba3e2afec0bef2379f445e764615d834069d99212d28db92",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_united_states_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "120b2bce2d733b8c85a9a7ef9040ff0684eeb4615983cda79daae66c2c6c35c2",
+      "kind": "FIA official original"
+    }
+  ]
+}

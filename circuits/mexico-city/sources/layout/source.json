@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "mx-1962",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "056017829fe5247bd6185cead3e89e695308bd77a9158ea4a6ad239e07db21e2",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/mexico/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "23d2a7c5f4fa65605603b4c758200c326f250fd5bcd804a8d103c96b8d9c3ba1",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_mexico_city_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "353a2b06543f06d89493c7642dae37aaf127eb41696dc62129574234c4df1525",
+      "kind": "FIA official original"
+    }
+  ]
+}

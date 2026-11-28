@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "es-1991",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "3237fa9360f76ab3cded6258b42ccf39f6a766dc882419ebaeda703ccbf502f1",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/barcelona-catalunya/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "5d792ea9e631869990121cb31b50fdc2cb73128afe39a17801bea0a9729d54ff",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_barcelona-catalunya_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "71e80dcbf81aef7b622d4737782409dba8dd1c87f5d8d1b02cd1c12f9be3145d",
+      "kind": "FIA official original"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ca-1978",
+  "category": "sessions",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "2026/session.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/sessions?session_key=11291",
+      "retrieved": "2026-11-28",
+      "sha256": "a3be95f327c00f526cea43f1af8b4bcfe6c7628bf06719d557acdb866f7b38db"
+    },
+    {
+      "file": "2026/laps.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11291",
+      "retrieved": "2026-11-28",
+      "sha256": "30eaef940052312c223b51fe255e084bc2559eb13b71b5ba809d1cf2269ccc02"
+    },
+    {
+      "file": "2026/reference-lap.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11291",
+      "retrieved": "2026-11-28",
+      "sha256": "1814b82d60b37a9aa155fdd20fdee106d6a7247ce53c2e6801bfe7187b66bf58",
+      "selection": "Fastest complete non-pit-out lap with consistent sector sum; timing sample, not certified qualifying record."
+    },
+    {
+      "file": "2026/car-data.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/car_data?session_key=11291&driver_number=12&date%3E=2026-05-24T21%3A36%3A49.832000%2B00%3A00&date%3C=2026-05-24T21%3A38%3A04.042000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "5e809b44a73609bc6bc6f29199cdaa7e6ab065092e614a90e7aa0d018b49bcfa",
+      "lap": 68,
+      "driver": 12
+    },
+    {
+      "file": "2026/location.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/location?session_key=11291&driver_number=12&date%3E=2026-05-24T21%3A36%3A49.832000%2B00%3A00&date%3C=2026-05-24T21%3A38%3A04.042000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "1560d6578a0da09cc7ef09f989e67f005a32b85ac9c2c231f4bc40fa831ea7fa",
+      "lap": 68,
+      "driver": 12
+    },
+    {
+      "file": "2026/pit.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/pit?session_key=11291",
+      "retrieved": "2026-11-28",
+      "sha256": "2e30c51e2134b405706f448781744ca5505300b6917d5d0e28ca9aa38dfd7775"
+    }
+  ]
+}

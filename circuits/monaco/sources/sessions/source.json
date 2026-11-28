@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "mc-1929",
+  "category": "sessions",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "2026/session.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/sessions?session_key=11299",
+      "retrieved": "2026-11-28",
+      "sha256": "585f30b3873b4f8de2b857d26d264b3866327fc8654d29204d3837ebb0c6db8c"
+    },
+    {
+      "file": "2026/laps.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11299",
+      "retrieved": "2026-11-28",
+      "sha256": "4e323b686eb780084569e790d9c4ecd79da93438c841d2f0062d413cf3602159"
+    },
+    {
+      "file": "2026/reference-lap.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/laps?session_key=11299",
+      "retrieved": "2026-11-28",
+      "sha256": "3d83562a5769f0bd16ed4d8bca2655db844ef119f0d2cc67e848b5a2df3937b4",
+      "selection": "Fastest complete non-pit-out lap with consistent sector sum; timing sample, not certified qualifying record."
+    },
+    {
+      "file": "2026/car-data.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/car_data?session_key=11299&driver_number=12&date%3E=2026-06-07T15%3A23%3A00.737000%2B00%3A00&date%3C=2026-06-07T15%3A24%3A14.218000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "2383c814b73af8ba62f90958e990a244c00e5d53aa22ff2143661b4ee4c99787",
+      "lap": 76,
+      "driver": 12
+    },
+    {
+      "file": "2026/pit.json",
+      "year": 2026,
+      "url": "https://api.openf1.org/v1/pit?session_key=11299",
+      "retrieved": "2026-11-28",
+      "sha256": "44069ea39bd772ed66f8d24d506e43d564d9be25be3a008eaf8ba45247f0cf03"
+    },
+    {
+      "file": "2025/location.json",
+      "year": 2025,
+      "url": "https://api.openf1.org/v1/location?session_key=9979&driver_number=4&date%3E=2025-05-25T14%3A42%3A30.347000%2B00%3A00&date%3C=2025-05-25T14%3A43%3A43.568000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "fab2e0fae1c948124dc219a7e8fc31f9f1f4b172766e98aa599f83fb846ddb6e",
+      "kind": "Position telemetry fallback; 2026 samples unavailable",
+      "lap": 78,
+      "driver": 4
+    },
+    {
+      "file": "2025/reference-lap.json",
+      "year": 2025,
+      "url": "https://api.openf1.org/v1/laps?session_key=9979",
+      "retrieved": "2026-11-28",
+      "sha256": "cf38dea67f039d4860b73ebd6418987489af9a0b95c1b53e40ee8d348d120d1b",
+      "kind": "Position telemetry fallback; 2026 samples unavailable",
+      "lap": 78,
+      "driver": 4
+    },
+    {
+      "file": "2025/session.json",
+      "year": 2025,
+      "url": "https://api.openf1.org/v1/sessions?session_key=9979",
+      "retrieved": "2026-11-28",
+      "sha256": "150a2203f2ba247a80e71f22a6c092f90929364202d18f2a9612cdf2798a30b4",
+      "kind": "Position telemetry fallback; 2026 samples unavailable",
+      "lap": 78,
+      "driver": 4
+    },
+    {
+      "file": "2025/car-data.json",
+      "year": 2025,
+      "url": "https://api.openf1.org/v1/car_data?session_key=9979&driver_number=4&date%3E=2025-05-25T14%3A42%3A30.347000%2B00%3A00&date%3C=2025-05-25T14%3A43%3A43.568000%2B00%3A00",
+      "retrieved": "2026-11-28",
+      "sha256": "1e7846196f22334fb3cb838169acb8d111f8289d13891f8e7dbd2023ed0f64e5",
+      "kind": "Position telemetry fallback; 2026 samples unavailable",
+      "lap": 78,
+      "driver": 4
+    }
+  ]
+}

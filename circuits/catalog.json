@@ -1,0 +1,98 @@
+[
+  {
+    "id": "au-1953",
+    "directory": "melbourne"
+  },
+  {
+    "id": "cn-2004",
+    "directory": "shanghai"
+  },
+  {
+    "id": "jp-1962",
+    "directory": "suzuka"
+  },
+  {
+    "id": "bh-2002",
+    "directory": "bahrain"
+  },
+  {
+    "id": "sa-2021",
+    "directory": "jeddah"
+  },
+  {
+    "id": "us-2022",
+    "directory": "miami"
+  },
+  {
+    "id": "ca-1978",
+    "directory": "montreal"
+  },
+  {
+    "id": "mc-1929",
+    "directory": "monaco"
+  },
+  {
+    "id": "es-1991",
+    "directory": "barcelona"
+  },
+  {
+    "id": "at-1969",
+    "directory": "spielberg"
+  },
+  {
+    "id": "gb-1948",
+    "directory": "silverstone"
+  },
+  {
+    "id": "be-1925",
+    "directory": "spa"
+  },
+  {
+    "id": "hu-1986",
+    "directory": "budapest"
+  },
+  {
+    "id": "nl-1948",
+    "directory": "zandvoort"
+  },
+  {
+    "id": "it-1922",
+    "directory": "monza"
+  },
+  {
+    "id": "es-2026",
+    "directory": "madrid"
+  },
+  {
+    "id": "az-2016",
+    "directory": "baku"
+  },
+  {
+    "id": "sg-2008",
+    "directory": "singapore"
+  },
+  {
+    "id": "us-2012",
+    "directory": "austin"
+  },
+  {
+    "id": "mx-1962",
+    "directory": "mexico-city"
+  },
+  {
+    "id": "br-1940",
+    "directory": "sao-paulo"
+  },
+  {
+    "id": "us-2023",
+    "directory": "las-vegas"
+  },
+  {
+    "id": "qa-2004",
+    "directory": "lusail"
+  },
+  {
+    "id": "ae-2009",
+    "directory": "yas-marina"
+  }
+]

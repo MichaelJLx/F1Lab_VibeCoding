@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "sa-2021",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "dec31d5f521aef2e03e9101eb5abd7c014d890159167ba7c4988850639ec4e9e",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-2025-event-notes-v2.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_saudi_arabian_grand_prix_-_race_directors_event_notes_v2.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "60f9b046682196aaf4f36cd03bfb6c1bb3e432138409c6e305110ac2d78e0ce3",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_saudi_arabian_grand_prix_-_event_notes_-_circuit_map_pit_lane_and_quarantine_zone.pdf",
+      "derivedFrom": "../layout/fia-2025-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "f61e2f5798ba21e907c6258f52d22aa2b114d40d8919607bec0b048f081cf0ec"
+    }
+  ]
+}

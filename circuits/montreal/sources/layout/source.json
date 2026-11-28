@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ca-1978",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "78f10aa0c1838af442fe077723cd808dcd9ba990094a683b8174ac48cd4c3b13",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/canada/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "7e0b925364f6ae4691f7479c8d0901ce76b433f2f86b77c85e64aa2f7b2e4bfd",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map-f540565b.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_v2.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "ff1913689a59cdf0ea5bd0c112f71fbfcbb269f6b9e89e285a88d74f06d5facc",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "ed3713ec2e3e7c4d0c3a9b8fc9e905765ba854ad3e931f699333604652d57ccc",
+      "kind": "FIA official original"
+    }
+  ]
+}

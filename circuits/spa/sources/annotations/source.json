@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "be-1925",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/7/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "c189aacf1fe268d1b3867bd5b6d7d0b5f5c6aa5651514ffce692a76936d30f53",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/7/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "5407c2227ffbac2c6e45158c8659b45f75c09f92d2b8d0b58aec5f9e395e32ff",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "413203840074fc6d178dd07378e94381abb7d29ad9f06ee5e46aab71c4ea00d5"
+    }
+  ]
+}

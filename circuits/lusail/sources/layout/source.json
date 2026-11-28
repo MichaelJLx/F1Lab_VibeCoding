@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "qa-2004",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "91ee8685d2c06bf60bc2d43aa308d2c8b1eb319128a05662a597d2a1b5705638",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/qatar/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "25d4b628f5cbfce820dd4b2c4c52f7a6ea804e8b483dacbc87cb7d527940eb90",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_qatar_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "d4e6898c25a3e5e99643a84d176732fdf405319e1d6fcf4f27758c2fdfffd3d0",
+      "kind": "FIA official original"
+    }
+  ]
+}

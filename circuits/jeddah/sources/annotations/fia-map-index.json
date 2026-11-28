@@ -1,0 +1,17 @@
+{
+  "sourceFile": "../layout/fia-2025-circuit-map.pdf",
+  "page": 2,
+  "year": 2025,
+  "lengthM": null,
+  "sectorLengthsM": null,
+  "sectorGatesM": null,
+  "coordinateSystem": "PDF page points; label rectangles are not track coordinates.",
+  "mapLabels": [],
+  "activeAero": {
+    "kind": "diagram-only",
+    "runtimeImported": false
+  },
+  "validation": {
+    "sectorSumMatchesLength": false
+  }
+}

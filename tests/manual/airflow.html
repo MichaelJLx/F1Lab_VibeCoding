@@ -1,0 +1,15 @@
+<!doctype html><html><head><title>RB22 airflow performance</title><style>body{margin:0;font:12px monospace;background:#fffdf7}#scene{position:absolute;inset:110px 0 0}header{position:relative;z-index:3;padding:8px}button{margin:0 4px 4px 0}pre{margin:2px 0;white-space:pre-wrap}#report{color:#164f36}</style></head><body><header><button id="off">Flow off</button><button id="on">Flow on</button><button id="yaw">Yaw / turn</button><button id="straight">Straight</button><button id="wing">Wing open / close</button><button id="bottom">Underfloor</button><button id="side">Side</button><button id="front">Front</button><button id="drive">Drive / pause</button><button id="measure">Measure off / on (8 s)</button><pre id="stats">Loading RB22</pre><pre id="report"></pre></header><div id="scene"></div><script type="module">
+import {Inspector} from '/src/scene/Inspector.ts';import {circuitData} from '/src/tracks/CircuitRegistry.ts';
+const host=document.querySelector('#scene'),stats=document.querySelector('#stats'),report=document.querySelector('#report');let ready=false,driving=false,yaw=false,measuring=false,errors=0;
+const originalError=console.error;console.error=(...args)=>{errors++;originalError(...args);};window.addEventListener('error',()=>errors++);window.addEventListener('unhandledrejection',()=>errors++);
+const scene=new Inspector(circuitData('be-1925'),host,()=>{ready=true;scene.cruise.speed=60;},()=>{},e=>stats.textContent=e,()=>{});
+document.querySelector('#off').onclick=()=>scene.setAirflow(false);document.querySelector('#on').onclick=()=>scene.setAirflow(true);
+document.querySelector('#yaw').onclick=()=>yaw=true;document.querySelector('#straight').onclick=()=>yaw=false;
+document.querySelector('#wing').onclick=()=>scene.gridWingPreview=!scene.gridWingPreview;
+for(const id of ['bottom','side','front'])document.querySelector('#'+id).onclick=()=>scene.view(id);
+document.querySelector('#drive').onclick=()=>{driving=!driving;scene.cruise.toggle();};
+setInterval(()=>{if(!ready)return;if(!driving){scene.cruise.speed=60;scene.cruise.dynamics.vy=yaw?4:0;scene.cruise.dynamics.yawRate=yaw?.35:0;scene.cruise.dynamics.steer=yaw?.12:0;}stats.textContent=JSON.stringify({...scene.renderer.domElement.dataset,errors});},100);
+const sample=()=>new Promise(resolve=>{const frames=[];let start=0,last=0;function tick(t){if(!start)start=t;if(last&&t-start>500)frames.push(t-last);last=t;if(t-start<4000)requestAnimationFrame(tick);else{frames.sort((a,b)=>a-b);resolve({median:frames[frames.length>>1].toFixed(2),p95:frames[Math.floor(frames.length*.95)].toFixed(2),...scene.renderer.domElement.dataset});}}requestAnimationFrame(tick);});
+document.querySelector('#measure').onclick=async()=>{if(!ready||measuring)return;measuring=true;report.textContent='Measuring off…';scene.setAirflow(false);const off=await sample();report.textContent='Measuring on…';scene.setAirflow(true);const on=await sample();report.textContent=JSON.stringify({off,on,errors});measuring=false;};
+window.addEventListener('pagehide',()=>scene.dispose());
+</script></body></html>

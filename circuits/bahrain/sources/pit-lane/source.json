@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "bh-2002",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2025-event-notes.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_race_directors_event_notes_v2.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "9d8396d00c2638595c9ddb2af6a8b5a5d4045c7bc60f143452d7dc2cf57a675e",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2025-event-notes-d2fc4a18.pdf",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_race_directors_event_notes_.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "d4c0742e29039f2c2d3600b93676e1205ac31fec67da06917e76005a65a4e30b",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "d3bfa0f710869f32dc6b0e4a6c5af0df74b167e2614cf32c8ba8567732c19e01",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2025,
+      "url": "https://www.fia.com/system/files/decision-document/2025_bahrain_grand_prix_-_event_notes_-_circuit_map_v4.pdf",
+      "derivedFrom": "../layout/fia-2025-circuit-map.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "d2b9a9c8f60167bbc3994eeaed8f3129aca1f8bc43f9eff9a6a41b1188144e91"
+    }
+  ]
+}

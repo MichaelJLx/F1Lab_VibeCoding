@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "cn-2004",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/49/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "8ecc5b5c4a2ffddd3b4a478dbd705cc9db6bc21c0eeb106c4a01ab7a2e07b8b2",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/49/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "0fbbd15382ff38bffbfc60fbc7b5381f5bd4be385d872b56e5def8339448b96f",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/49/2026",
+      "sha256": "746f53adc27a4517c63b092fde908549f2a31062e11b275923440daa892c6d30",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_chinese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "9ac97747f9d6c908b60ba81d13e8d59c81b5cd7c29a8000fd053709b21163639"
+    }
+  ]
+}

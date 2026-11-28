@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "au-1953",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/10/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "25b60091d25686057f6f5f1d38f85da441d09dbdecee45aa9ef83155f904f543",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/10/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "5c45fd0663602a7f0b811c31a183a4a9b4edd30b438a28ca59cab0267847bdbb",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/10/2026",
+      "sha256": "67b457767bb70847e8d3f6072ecca467850d02ee1b49ea3c99a1c54058e6e1e2",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_australian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_quarantine_zone.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "e8400fa1f636ad50dac0c90dfcfdfbf11c51cf46d9915fc9bb1e5b6a8119a71d"
+    }
+  ]
+}

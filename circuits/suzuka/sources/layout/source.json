@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "jp-1962",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "381572b264cd844993c45c3e3b86afdba9109f42c9c0b40868a25c7891a8ca2a",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/japan/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "b06372bf6e6733f42efb14cfa09ae8355d9174283f3a7f20dac32983008d4a5e",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_japanese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "d78ed4ffc860e28f78d41b6ea8a5fd6ad368aa16deef97bc9ec93a0232b0d494",
+      "kind": "FIA official original"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "gb-1948",
+  "category": "layout",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "centerline.geojson",
+      "year": null,
+      "url": "https://github.com/bacinger/f1-circuits",
+      "retrieved": "2026-11-28",
+      "sha256": "bc5102453b4750f08cb62adbe2cade47f9746fb05ff10312f3199d0edb2642ef",
+      "kind": "geographic layout",
+      "license": "MIT",
+      "yearNote": "Upstream geometry has no survey epoch; retrieval year is not a survey year."
+    },
+    {
+      "file": "official-facts-2026.json",
+      "year": 2026,
+      "url": "https://www.formula1.com/en/racing/2026/great-britain/circuit",
+      "retrieved": "2026-11-28",
+      "sha256": "8bfba7e8d3e39687898a7b4d6af14490551273ad5ec4612e99e6ad9b994ec6ca",
+      "kind": "F1 official circuit facts"
+    },
+    {
+      "file": "fia-2026-circuit-map.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_british_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "9dd40b959d4ef1c19604ae23dc63c80aa5b9426169373131f69d952e84aa77fa",
+      "kind": "FIA official original"
+    }
+  ]
+}

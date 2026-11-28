@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ca-1978",
+  "category": "annotations",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "coordinate-map-2026.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/23/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "6b74d5d11b628ed35081db36a8f3e9d6d5024130df8ccb3ddfca70c5ba9ab284",
+      "kind": "MultiViewer timing coordinate frame",
+      "units": "F1 timing coordinate units; not surveyed metres"
+    },
+    {
+      "file": "timing-markers.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/23/2026",
+      "retrieved": "2026-11-28",
+      "sha256": "70fbdb1f2a4ba5904ad03c5b890201b316dd9314bd9b40b7fcf15aedca93d710",
+      "kind": "Unmodified timing-line, sector and corner annotations"
+    },
+    {
+      "file": "map.json",
+      "year": 2026,
+      "url": "https://api.multiviewer.app/api/v1/circuits/23/2026",
+      "sha256": "e89179927efcf97fcd9e342e84aac8ce6a66d9a791a2fbdaa5b95abe9851dcda",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": null
+    },
+    {
+      "file": "fia-map-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_v2.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map-f540565b.pdf",
+      "kind": "FIA map label and sector index",
+      "sha256": "536cb01166e9b2092f1b379f69d6af2583be2dd8959ac40bf52e48164df584dc"
+    }
+  ]
+}

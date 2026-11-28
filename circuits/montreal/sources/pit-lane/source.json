@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "ca-1978",
+  "category": "pit-lane",
+  "audited": "2026-11-28",
+  "yearPreference": [
+    2026,
+    2025,
+    2024,
+    2023
+  ],
+  "files": [
+    {
+      "file": "fia-2026-event-notes.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_infringement_-_car_11_-_failing_to_follow_race_directors_event_notes.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "19e63ac32f0a4ba28886660709a1ac212076bc70190b9623e79efa23dbc2b0b6",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "fia-2026-competition-visa.pdf",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_visa.pdf",
+      "retrieved": "2026-11-28",
+      "sha256": "8542f40e2bd20f435376dc8d8e1d7e7828e9dd88896942fe6ff0d2e1f63e313b",
+      "kind": "FIA official original"
+    },
+    {
+      "file": "map.json",
+      "year": null,
+      "url": "https://www.openstreetmap.org/copyright",
+      "sha256": "b3c290ff5bc7c8a2a289adadfbb202f1b3be43b8796cee825d7134dcddaa3a79",
+      "kind": "Retained pre-existing evidence",
+      "yearNote": "Original acquisition/version year not stated; not relabelled as 2026."
+    },
+    {
+      "file": "fia-pit-index.json",
+      "year": 2026,
+      "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_v2.pdf",
+      "derivedFrom": "../layout/fia-2026-circuit-map-f540565b.pdf",
+      "kind": "FIA pit diagram text and posted speed sign",
+      "sha256": "2c4e8ac0ed6ff69673eee3a768c7909a3ee77d1b850269c6ca6f8d5663cf5cd6"
+    }
+  ]
+}

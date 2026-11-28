@@ -5,4 +5,6 @@ artifacts/
 __pycache__/
 .venv/
 F1-2026-Aero-Simulator-Prompt*
-data/**/*.pdf
+references/**/*.pdf
+vehicles/**/sources/*.pdf
+circuits/**/sources/*.pdf
